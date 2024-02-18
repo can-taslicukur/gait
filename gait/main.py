@@ -1,7 +1,7 @@
 import typer
 from typing_extensions import Annotated
 
-from .diff import diff
+from .diff import Diff
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -16,7 +16,7 @@ def review(
     """
     Review changes between HEAD and target tree.
     """
-    print(diff().head(target_tree))
+    print(Diff().head(target_tree))
 
 
 if __name__ == "__main__":
