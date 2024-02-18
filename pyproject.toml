@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "gait"
+version = "0.1.0"
+description = ""
+authors = ["Can Taşlıçukur <can.taslicukur@ozu.edu.tr>"]
+readme = "README.md"
+
+[tool.poetry.scripts]
+gait = "gait.main:app"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+typer = {extras = ["all"], version = "^0.9.0"}
+pytest = "^8.0.1"
+ruff = "^0.2.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
+select = ["E", "W", "F", "I", "C", "B"]
