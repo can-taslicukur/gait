@@ -56,6 +56,7 @@ class Diff:
         try:
             diffs = diffMethod(against, create_patch=True, no_ext_diff=True, R=R, unified=unified)
             self.diffs = diffs
+            return diffs
         except GitCommandError as invalid_target:
             echo(f"Invalid target: {against}")
             raise Exit(1) from invalid_target
