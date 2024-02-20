@@ -1,4 +1,6 @@
-from git import GitCommandError, InvalidGitRepositoryError, Repo
+from typing import Union
+
+from git import GitCommandError, InvalidGitRepositoryError, Repo, diff
 from typer import Exit, echo
 
 
@@ -14,32 +16,35 @@ class Diff:
             echo("Current folder is not a git repository!")
             raise Exit(1) from no_git
 
-    # TODO: Right now, because of a bug in gitPython, we can't include index or working tree in diff
-    # to generate patch reliably. That is why `target_tree` is not optional.
-    # Issue: https://github.com/gitpython-developers/GitPython/issues/1828
-    # It would be nice to have a way to get diff HEAD against working tree or index.
-    # Or index against tree or working tree.
-    def head(self, target_tree: str) -> str:
-        """
-        Compare HEAD against target tree.
+    def head(
+        self,
+        against: Union[str, None, diff.Diffable.Index] = diff.Diffable.Index,
+        R=False,
+        unified: int = 3,
+    ) -> str:
+        """Compare changes between HEAD and target tree, index or working tree.
+
+        See https://git-scm.com/docs/git-diff for more information on R and unified.
 
         Args:
-            target_tree (str): Target tree to compare changes.
+            against (Union[str, None, diff.Diffable.Index], optional): What to compare against.
+            Defaults to diff.Diffable.Index (index).
+            If None, compare against the working tree.
+            If a string, compare against the given tree.
+            R (bool, optional): Whether to reverse the diff. Defaults to False.
+            unified (int, optional): Number of lines of context to show. Defaults to 3.
 
         Raises:
-            Exit: If target tree is invalid.
+            Exit: If the target is invalid.
 
         Returns:
-            str: Diff between HEAD and target tree.
+            str: The diff.
         """
         try:
-            diffs = self.repo.head.commit.diff(target_tree, create_patch=True, R=True)
+            diffs = self.repo.head.commit.diff(
+                against, create_patch=True, no_ext_diff=True, R=R, unified=unified
+            )
         except GitCommandError as invalid_target:
-            echo(f"Invalid target: {target_tree}")
+            echo(f"Invalid target: {against}")
             raise Exit(1) from invalid_target
-        return "\n".join(
-            [
-                f"a_path:{diff.a_path}\nb_path:{diff.b_path}\n{diff.diff.decode('utf-8')}"
-                for diff in diffs
-            ]
-        )
+        return "\n".join([diff.diff.decode("utf-8") for diff in diffs])
