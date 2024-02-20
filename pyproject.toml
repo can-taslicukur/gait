@@ -12,6 +12,7 @@ gait = "gait.main:app"
 python = "^3.8"
 typer = {extras = ["all"], version = "^0.9.0"}
 gitpython = "^3.1.42"
+openai = "^1.12.0"
 
 
 [tool.poetry.group.dev.dependencies]
