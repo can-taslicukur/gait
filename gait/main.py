@@ -1,10 +1,12 @@
+import os
+
 import typer
 from typing_extensions import Annotated
 
 from .diff import Diff
+from .reviewer import Reviewer
 
 app = typer.Typer(no_args_is_help=True)
-
 
 @app.command()
 def add():
@@ -14,7 +16,8 @@ def add():
     diff = Diff()
     repo = diff.get_repo()
     diff.generate_diffs(repo.index.diff, None)
-    print(diff.get_patch())
+    patch = diff.get_patch()
+    Reviewer(api_key=os.environ.get("OPENAI_API_KEY")).review(patch)
 
 
 @app.command()
@@ -25,7 +28,8 @@ def commit():
     diff = Diff()
     repo = diff.get_repo()
     diff.generate_diffs(repo.head.commit.diff)
-    print(diff.get_patch())
+    patch = diff.get_patch()
+    Reviewer(api_key=os.environ.get("OPENAI_API_KEY")).review(patch)
 
 
 @app.command()
@@ -36,7 +40,8 @@ def merge(tree: Annotated[str, typer.Argument(help="The tree to compare against.
     diff = Diff()
     repo = diff.get_repo()
     diff.generate_diffs(repo.head.commit.diff, tree)
-    print(diff.get_patch())
+    patch = diff.get_patch()
+    Reviewer(api_key=os.environ.get("OPENAI_API_KEY")).review(patch)
 
 
 @app.command()
@@ -47,7 +52,8 @@ def pr(tree: Annotated[str, typer.Argument(help="The tree to send a pull request
     diff = Diff()
     repo = diff.get_repo()
     diff.generate_diffs(repo.head.commit.diff, tree, R=True)
-    print(diff.get_patch())
+    patch = diff.get_patch()
+    Reviewer(api_key=os.environ.get("OPENAI_API_KEY")).review(patch)
 
 
 if __name__ == "__main__":
