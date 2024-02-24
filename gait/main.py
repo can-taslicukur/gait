@@ -16,8 +16,11 @@ def add():
     diff = Diff()
     repo = diff.get_repo()
     diff.generate_diffs(repo.index.diff, None)
-    patch = diff.get_patch()
-    Reviewer(api_key=os.environ.get("OPENAI_API_KEY")).review(patch)
+    if len(diff.diffs) > 0:
+        patch = diff.get_patch()
+        Reviewer(api_key=os.environ.get("OPENAI_API_KEY")).review(patch)
+    else:
+        print("No changes between working tree and index to review.")
 
 
 @app.command()
@@ -28,8 +31,11 @@ def commit():
     diff = Diff()
     repo = diff.get_repo()
     diff.generate_diffs(repo.head.commit.diff)
-    patch = diff.get_patch()
-    Reviewer(api_key=os.environ.get("OPENAI_API_KEY")).review(patch)
+    if len(diff.diffs) > 0:
+        patch = diff.get_patch()
+        Reviewer(api_key=os.environ.get("OPENAI_API_KEY")).review(patch)
+    else:
+        print("No changes between index and the tree to review.")
 
 
 @app.command()
@@ -40,8 +46,11 @@ def merge(tree: Annotated[str, typer.Argument(help="The tree to compare against.
     diff = Diff()
     repo = diff.get_repo()
     diff.generate_diffs(repo.head.commit.diff, tree)
-    patch = diff.get_patch()
-    Reviewer(api_key=os.environ.get("OPENAI_API_KEY")).review(patch)
+    if len(diff.diffs) > 0:
+        patch = diff.get_patch()
+        Reviewer(api_key=os.environ.get("OPENAI_API_KEY")).review(patch)
+    else:
+        print("No changes between trees to review.")
 
 
 @app.command()
@@ -52,8 +61,11 @@ def pr(tree: Annotated[str, typer.Argument(help="The tree to send a pull request
     diff = Diff()
     repo = diff.get_repo()
     diff.generate_diffs(repo.head.commit.diff, tree, R=True)
-    patch = diff.get_patch()
-    Reviewer(api_key=os.environ.get("OPENAI_API_KEY")).review(patch)
+    if len(diff.diffs) > 0:
+        patch = diff.get_patch()
+        Reviewer(api_key=os.environ.get("OPENAI_API_KEY")).review(patch)
+    else:
+        print("No changes to review.")
 
 
 if __name__ == "__main__":
