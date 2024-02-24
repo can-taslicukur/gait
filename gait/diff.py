@@ -1,15 +1,15 @@
-from typing import Callable, Union
+from pathlib import Path
 
-from git import GitCommandError, InvalidGitRepositoryError, Repo, diff
-from typer import Exit, echo
+from git import InvalidGitRepositoryError, Repo
+from typer import Exit
 
 
 class Diff:
     """
-    A class to facilitate the generation of diffs.
+    A class to facilitate the generation of diff patches.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, repo_path: Path, unified: int = 3) -> None:
         """
         The constructor for the Diff class.
 
@@ -17,49 +17,57 @@ class Diff:
             Exit: Raised when no git repository is found.
         """
         try:
-            self.repo = Repo(".", search_parent_directories=True)
+            self.repo = Repo(repo_path, search_parent_directories=True)
         except InvalidGitRepositoryError as no_git:
-            echo("no git repository found.")
+            print("no git repository found.")
             raise Exit(1) from no_git
+        self.repo_path = repo_path
+        self.unified = unified
 
-    def get_repo(self) -> Repo:
+    def add(self):
         """
-        Get the repository object.
-
-        Returns:
-            Repo: The repository object.
+        Diff between the index and the working tree.
         """
-        return self.repo
+        diff = self.repo.index.diff(
+            None, create_patch=True, no_ext_diff=True, R=False, unified=self.unified
+        )
+        if len(diff) == 0:
+            print("No changes between the index and the working tree")
+            raise Exit(0)
 
-    def generate_diffs(
-        self,
-        diffMethod: Callable[..., diff.Diff],
-        against: Union[str, None, diff.Diffable.Index] = diff.Diffable.Index,
-        R: bool = False,
-        unified: int = 3,
-    ):
+        self.diffs = diff
+        return self
+
+    def commit(self):
         """
-        Generate diffs with a diffMethod against a target.
-
-        Args:
-            diffMethod (Callable[..., diff.Diff]): The diff method to use.
-            against (Union[str, None, diff.Diffable.Index], optional): Target to compare against
-            Defaults to diff.Diffable.Index.
-            If None, compare against the working tree.
-            If str, compare against the given tree.
-            R (bool, optional): Whether to reverse the diff. Defaults to False.
-            unified (int, optional): Number of lines of context. Defaults to 3.
-
-        Raises:
-            Exit: Raised when an invalid target is provided.
+        Diff between the HEAD and the index.
         """
-        try:
-            diffs = diffMethod(against, create_patch=True, no_ext_diff=True, R=R, unified=unified)
-            self.diffs = diffs
-            return diffs
-        except GitCommandError as invalid_target:
-            echo(f"Invalid target: {against}")
-            raise Exit(1) from invalid_target
+        diff = self.repo.head.commit.diff(
+            create_patch=True, no_ext_diff=True, R=False, unified=self.unified
+        )
+        if len(diff) == 0:
+            print("No changes between the HEAD and the index.")
+            raise Exit(0)
+
+        self.diffs = diff
+        return self
+
+    def merge(self, tree: str):
+        """
+        Diff between the HEAD and the tree.
+        """
+        if self.repo.is_ancestor(tree, self.repo.head.commit):
+            print("No changes between the HEAD and the tree.")
+            raise Exit(0)
+        diff = self.repo.head.commit.diff(
+            tree, create_patch=True, no_ext_diff=True, R=False, unified=self.unified
+        )
+        if len(diff) == 0:
+            print("No changes between the HEAD and the tree.")
+            raise Exit(0)
+
+        self.diffs = diff
+        return self
 
     def get_patch(self) -> str:
         """
@@ -72,5 +80,5 @@ class Diff:
             str: The patch for the diffs.
         """
         if self.diffs is None:
-            raise ValueError("No diffs generated.")
+            return None
         return "\n".join([diff.diff.decode("utf-8") for diff in self.diffs])
