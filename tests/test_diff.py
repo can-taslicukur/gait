@@ -63,9 +63,11 @@ def test_commit(git_history):
 
 def test_merge(git_history):
     repo_path = git_history
+    repo = Repo(repo_path)
     with pytest.raises(typer.Exit):
         Diff(repo_path).merge("master")
-    repo = Repo(repo_path)
+    with pytest.raises(typer.Exit):
+        Diff(repo_path).merge("nonexistent_tree")
     repo.git.add(".gitignore")
     repo.index.commit("second commit")
     repo.heads.master.checkout()

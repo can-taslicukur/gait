@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from git import InvalidGitRepositoryError, Repo
+from git import GitCommandError, InvalidGitRepositoryError, Repo
 from typer import Exit
 
 
@@ -55,13 +55,27 @@ class Diff:
     def merge(self, tree: str):
         """
         Diff between the HEAD and the tree.
+
+        Args:
+            tree (str): The tree to compare against.
+
+        Raises:
+            Exit: Raised when the tree is not found.
         """
-        if self.repo.is_ancestor(tree, self.repo.head.commit):
-            print("No changes between the HEAD and the tree.")
+        try:
+            tree_is_ancestor = self.repo.is_ancestor(tree, self.repo.head.commit)
+        except GitCommandError as no_tree:
+            print(f"Tree {tree} not found.")
+            raise Exit(1) from no_tree
+
+        if tree_is_ancestor:
+            print("Tree is an ancestor of the HEAD. No changes to review.")
             raise Exit(0)
+
         diff = self.repo.head.commit.diff(
             tree, create_patch=True, no_ext_diff=True, R=False, unified=self.unified
         )
+
         if len(diff) == 0:
             print("No changes between the HEAD and the tree.")
             raise Exit(0)
@@ -69,15 +83,13 @@ class Diff:
         self.diffs = diff
         return self
 
-    def get_patch(self) -> str:
+    def get_patch(self):
         """
         Get the patch for the diffs.
 
-        Raises:
-            ValueError: Raised when no diffs are generated with generate_diffs method.
-
         Returns:
             str: The patch for the diffs.
+            None: If no diffs are found.
         """
         if self.diffs is None:
             return None
