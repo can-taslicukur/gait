@@ -63,7 +63,6 @@ def test_check_head_ancestry(git_history):
     repo.heads.feature.checkout()
     assert check_head_ancestry(repo, "master") is False
 
-
 def test_init(tmp_path):
     with pytest.raises(typer.Exit):
         Diff(tmp_path)
@@ -71,6 +70,20 @@ def test_init(tmp_path):
     diff = Diff(tmp_path)
     assert diff.repo == repo
     assert diff.unified == 3
+
+
+def test_get_patch(git_history, snapshot):
+    repo_path = git_history["repo_path"]
+    diff = Diff(repo_path)
+    with pytest.raises(Exception, match="No diffs generated"):
+        diff.get_patch()
+
+    patch = diff.add().get_patch()
+    snapshot.assert_match(patch, "add_patch")
+
+    diff_negative_unified = Diff(repo_path, unified=-11)
+    patch = diff_negative_unified.add().get_patch()
+    snapshot.assert_match(patch, "add_patch_diff_negative_unified")
 
 
 def test_add(git_history):

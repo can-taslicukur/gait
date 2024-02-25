@@ -59,6 +59,7 @@ class Diff:
         except InvalidGitRepositoryError as no_git:
             print("no git repository found.")
             raise Exit(1) from no_git
+        self.diffs = None
         self.repo_path = repo_path
         self.unified = unified
 
