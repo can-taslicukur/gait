@@ -1,8 +1,12 @@
+from pathlib import Path
 from types import SimpleNamespace
 
 import typer
 from openai import AuthenticationError, NotFoundError, OpenAI
 from typing_extensions import Annotated
+
+from .diff import Diff
+from .errors import NotARepo
 
 app = typer.Typer()
 
@@ -33,10 +37,17 @@ def main(
         ),
     ] = 3,
 ):
+    try:
+        diff = Diff(Path("."))
+    except NotARepo as not_a_repo:
+        print("Not a git repository")
+        raise typer.Abort() from not_a_repo
+
     if not model.startswith("gpt"):
         raise typer.BadParameter(
             "Only gpt models are supported", ctx=ctx, param=model, param_hint="model"
         )
+
     client = OpenAI(api_key=openai_api_key)
     try:
         client.models.retrieve(model=model)
@@ -50,6 +61,7 @@ def main(
         ) from no_model
 
     ctx.obj = SimpleNamespace(
+        diff=diff,
         client=client,
         openai_api_key=openai_api_key,
         model=model,
@@ -59,6 +71,10 @@ def main(
 
     if ctx.invoked_subcommand is None:
         ctx.get_help()
+
+@app.command()
+def add(ctx: typer.Context):
+    pass
 
 
 if __name__ == "__main__":

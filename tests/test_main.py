@@ -41,7 +41,7 @@ def mock_openai(monkeypatch, git_history: git_history):
 
 
 
-def test_main(mock_openai):
+def test_main(mock_openai, monkeypatch, git_history: git_history):
     result = runner.invoke(app, ["--help"])
     assert "OpenAI Parameters" in result.stdout
     assert "Git Parameters" in result.stdout
@@ -61,3 +61,9 @@ def test_main(mock_openai):
     print(invalid_api_key_result.stdout)
     assert invalid_api_key_result.exit_code != 0
     assert "Invalid OpenAI API key" in invalid_api_key_result.stdout
+
+    # Test in a non-git directory
+    monkeypatch.chdir(git_history["no_repo_path"])
+    not_a_repo_result = runner.invoke(app)
+    assert not_a_repo_result.exit_code != 0
+    assert "Not a git repository" in not_a_repo_result.stdout
