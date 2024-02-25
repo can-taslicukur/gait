@@ -4,6 +4,24 @@ from git import GitCommandError, InvalidGitRepositoryError, Repo
 from typer import Exit
 
 
+def fetch_remote(repo: Repo, remote: str) -> None:
+    """
+    Fetch the remote.
+
+    Args:
+        repo (Repo): The git repository.
+        remote (str): The remote to fetch.
+
+    Raises:
+        typer.Exit: Raised when the remote is not found.
+    """
+    try:
+        repo.git.fetch(remote)
+    except GitCommandError as no_remote:
+        print(f"remote {remote} not found.")
+        raise Exit(1) from no_remote
+
+
 class Diff:
     """
     A class to facilitate the generation of diff patches.
@@ -24,7 +42,7 @@ class Diff:
         self.repo_path = repo_path
         self.unified = unified
 
-    def add(self):
+    def add(self) -> "Diff":
         """
         Diff between the index and the working tree.
         """
@@ -34,7 +52,7 @@ class Diff:
         self.diffs = diff
         return self
 
-    def commit(self):
+    def commit(self) -> "Diff":
         """
         Diff between the HEAD and the index.
         """
@@ -44,7 +62,7 @@ class Diff:
         self.diffs = diff
         return self
 
-    def merge(self, tree: str):
+    def merge(self, tree: str) -> "Diff":
         """
         Diff between the HEAD and the tree.
 
@@ -57,7 +75,7 @@ class Diff:
         try:
             tree_is_ancestor = self.repo.is_ancestor(tree, self.repo.head.commit)
         except GitCommandError as no_tree:
-            print(f"Tree {tree} not found.")
+            print(f"tree {tree} not found.")
             raise Exit(1) from no_tree
 
         if tree_is_ancestor:
@@ -70,7 +88,7 @@ class Diff:
         self.diffs = diff
         return self
 
-    def push(self, remote: str = "origin"):
+    def push(self, remote: str = "origin") -> "Diff":
         """
         Diff between the HEAD and remote.
 
@@ -79,8 +97,9 @@ class Diff:
         """
         remote_head = f"{remote}/{self.repo.active_branch.name}"
 
+        fetch_remote(self.repo, remote)
+
         try:
-            self.repo.git.fetch(remote)
             remote_is_ancestor = self.repo.is_ancestor(remote_head, self.repo.head.commit)
         except GitCommandError as no_tree:
             print(f"remote {remote} not found.")
@@ -103,8 +122,10 @@ class Diff:
             branch (str): The branch to compare HEAD against.
             remote (str): Remote name
         """
+        remote_head = f"{remote}/{branch}"
+        fetch_remote(self.repo, remote)
 
-    def get_patch(self):
+    def get_patch(self) -> str:
         """
         Get the patch for the diffs.
 

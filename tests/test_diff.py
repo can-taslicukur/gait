@@ -4,7 +4,7 @@ import pytest
 import typer
 from git import Repo
 
-from gait.diff import Diff
+from gait.diff import Diff, fetch_remote
 
 added_lines_pattern = re.compile(r"(?<=^\+)\w+(?=\s)", re.M)
 removed_lines_pattern = re.compile(r"(?<=^-)\w+(?=\s)", re.M)
@@ -42,6 +42,12 @@ def git_history(tmp_path_factory):
     repo.remotes.origin.push("feature", set_upstream=True)
 
     return {"repo_path": repo_path, "remote_repo_path": remote_repo_path}
+
+def test_fetch_remote(git_history):
+    repo = Repo(git_history["repo_path"])
+    with pytest.raises(typer.Exit):
+        fetch_remote(repo, "nonexistent_remote")
+    assert fetch_remote(repo, "origin") is None
 
 
 def test_init(tmp_path):
@@ -86,15 +92,17 @@ def test_push(git_history):
     repo_path = git_history["repo_path"]
     repo = Repo(repo_path)
     with pytest.raises(typer.Exit):
-        print(Diff(repo_path).push())
-    with pytest.raises(typer.Exit):
-        print(Diff(repo_path).push("nonexistent_remote"))
+        Diff(repo_path).push("nonexistent_remote")
     repo.index.commit("added second line")
     patch = Diff(repo_path).push().get_patch()
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["second_line"]
-    repo.git.reset("HEAD^", hard=True)
+
+    # Make remote ahead of local
+    repo.git.push()
+    repo.git.reset("HEAD^")
+    # Commit working tree
     repo.git.add(".gitignore")
     repo.index.commit("added second and third line")
     with pytest.raises(typer.Exit):
-        print(Diff(repo_path).push())
+        Diff(repo_path).push()
