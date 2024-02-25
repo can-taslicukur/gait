@@ -13,7 +13,7 @@ def fetch_remote(repo: Repo, remote: str) -> None:
         remote (str): The remote to fetch.
 
     Raises:
-        InvalidTree: Raised when the remote is not found.
+        InvalidRemote: Raised when the remote is not found.
     """
     try:
         repo.git.fetch(remote)
