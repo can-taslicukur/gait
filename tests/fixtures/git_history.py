@@ -4,6 +4,7 @@ from git import Repo
 
 @pytest.fixture
 def git_history(tmp_path_factory):
+    no_repo_path = tmp_path_factory.mktemp("no_repo")
     repo_path = tmp_path_factory.mktemp("repo")
     repo = Repo.init(repo_path)
     gitignore = repo_path / ".gitignore"
@@ -33,4 +34,8 @@ def git_history(tmp_path_factory):
     repo.create_remote("origin", remote_repo_path.as_uri())
     repo.remotes.origin.push("feature", set_upstream=True)
 
-    return {"repo_path": repo_path, "remote_repo_path": remote_repo_path}
+    return {
+        "repo_path": repo_path,
+        "remote_repo_path": remote_repo_path,
+        "no_repo_path": no_repo_path,
+    }

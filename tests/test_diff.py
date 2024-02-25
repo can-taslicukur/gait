@@ -32,11 +32,13 @@ def test_check_head_ancestry(git_history: git_history):
     assert check_head_ancestry(repo, "master") is False
 
 
-def test_init(tmp_path):
+def test_init(git_history: git_history):
+    no_repo_path = git_history["no_repo_path"]
+    repo_path = git_history["repo_path"]
     with pytest.raises(NotARepo):
-        Diff(tmp_path)
-    repo = Repo.init(tmp_path)
-    diff = Diff(tmp_path)
+        Diff(no_repo_path)
+    repo = Repo.init(repo_path)
+    diff = Diff(repo_path)
     assert diff.repo == repo
     assert diff.unified == 3
 
