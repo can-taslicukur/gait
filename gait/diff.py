@@ -1,21 +1,19 @@
 from pathlib import Path
 
 from git import GitCommandError, InvalidGitRepositoryError, Repo
-from typer import Exit
 
-from .errors import InvalidTree, IsAncestor, NotAncestor, NotARepo
+from .errors import InvalidTree, IsAncestor, NoDiffs, NotAncestor, NotARepo
 
 
 def fetch_remote(repo: Repo, remote: str) -> None:
-    """
-    Fetch the remote.
+    """Fetch the remote.
 
     Args:
         repo (Repo): The git repository.
         remote (str): The remote to fetch.
 
     Raises:
-        typer.Exit: Raised when the remote is not found.
+        InvalidTree: Raised when the remote is not found.
     """
     try:
         repo.git.fetch(remote)
@@ -24,15 +22,14 @@ def fetch_remote(repo: Repo, remote: str) -> None:
 
 
 def check_head_ancestry(repo: Repo, tree: str) -> bool:
-    """
-    Check if the tree is an ancestor of the HEAD.
+    """Check if the tree is an ancestor of the HEAD.
 
     Args:
         repo (Repo): The git repository.
         tree (str): The tree to compare against.
 
     Raises:
-        typer.Exit: Raised when the tree is not found.
+        InvalidTree: Raised when the tree is not found.
 
     Returns:
         bool: True if the tree is an ancestor of the HEAD, False otherwise.
@@ -45,15 +42,20 @@ def check_head_ancestry(repo: Repo, tree: str) -> bool:
 
 class Diff:
     """
-    A class to facilitate the generation of diff patches.
+    The Diff class for generating diffs and patches.
     """
 
     def __init__(self, repo_path: Path, unified: int = 3) -> None:
         """
-        The constructor for the Diff class.
+        Initialize the Diff class.
+
+        Args:
+            repo_path (Path): The path to the git repository.
+            unified (int, optional): The number of lines of context to include in the patch.
+            Defaults to 3.
 
         Raises:
-            typer.Exit: Raised when no git repository is found.
+            NotARepo: Raised when the path is not a git repository.
         """
         try:
             self.repo = Repo(repo_path, search_parent_directories=True)
@@ -66,6 +68,9 @@ class Diff:
     def add(self) -> "Diff":
         """
         Diff between the index and the working tree.
+
+        Returns:
+            Diff: The Diff object.
         """
         self.diffs = self.repo.index.diff(
             None, create_patch=True, no_ext_diff=True, R=False, unified=self.unified
@@ -75,6 +80,9 @@ class Diff:
     def commit(self) -> "Diff":
         """
         Diff between the HEAD and the index.
+
+        Returns:
+            Diff: The Diff object.
         """
         self.diffs = self.repo.head.commit.diff(
             create_patch=True, no_ext_diff=True, R=False, unified=self.unified
@@ -89,7 +97,10 @@ class Diff:
             tree (str): The tree to compare against.
 
         Raises:
-            Exit: Raised when the tree is not found.
+            IsAncestor: When the tree is an ancestor of the HEAD.
+
+        Returns:
+            Diff: The Diff object.
         """
         tree_is_ancestor = check_head_ancestry(self.repo, tree)
         if tree_is_ancestor:
@@ -102,10 +113,16 @@ class Diff:
 
     def push(self, remote: str = "origin") -> "Diff":
         """
-        Diff between the HEAD and remote.
+        Diff between the HEAD and the remote HEAD.
 
         Args:
-            remote (str): The remote to compare against. Defaults to "origin".
+            remote (str, optional): The remote to compare against. Defaults to "origin".
+
+        Raises:
+            NotAncestor: When the remote HEAD is not an ancestor of the HEAD.
+
+        Returns:
+            Diff: The Diff object.
         """
         remote_head = f"{remote}/{self.repo.active_branch.name}"
 
@@ -119,13 +136,19 @@ class Diff:
         )
         return self
 
-    def pr(self, target_branch: str, remote: str = "origin"):
+    def pr(self, target_branch: str, remote: str = "origin") -> "Diff":
         """
-        Diff between the HEAD and the remote target branch.
+        Diff between the HEAD and the target branch on the remote.
 
         Args:
-            target_branch (str): The branch to compare HEAD against.
-            remote (str): Remote name
+            target_branch (str): The target branch on the remote.
+            remote (str, optional): The remote to compare against. Defaults to "origin".
+
+        Raises:
+            NotAncestor: When the remote HEAD is not an ancestor of the HEAD.
+
+        Returns:
+            Diff: The Diff object.
         """
         remote_head = f"{remote}/{target_branch}"
         fetch_remote(self.repo, remote)
@@ -139,15 +162,17 @@ class Diff:
 
     def get_patch(self) -> str:
         """
-        Get the patch for the diffs.
+        Get the patch from the diffs.
+
+        Raises:
+            Exception: No diffs generated.
+            NoDiffs: When there are no diffs to review.
 
         Returns:
-            str: The patch for the diffs.
-            None: If no diffs are found.
+            str: All the diffs in the patch.
         """
         if self.diffs is None:
             raise Exception("No diffs generated.")
         elif len(self.diffs) == 0:
-            print("No changes found.")
-            raise Exit(0)
+            raise NoDiffs
         return "\n".join([diff.diff.decode("utf-8") for diff in self.diffs])

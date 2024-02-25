@@ -4,7 +4,7 @@ import pytest
 from git import Repo
 
 from gait.diff import Diff, check_head_ancestry, fetch_remote
-from gait.errors import InvalidTree, IsAncestor, NotAncestor, NotARepo
+from gait.errors import InvalidTree, IsAncestor, NoDiffs, NotAncestor, NotARepo
 
 added_lines_pattern = re.compile(r"(?<=^\+)\w+(?=\s)", re.M)
 removed_lines_pattern = re.compile(r"(?<=^-)\w+(?=\s)", re.M)
@@ -84,6 +84,11 @@ def test_get_patch(git_history, snapshot):
     diff_negative_unified = Diff(repo_path, unified=-11)
     patch = diff_negative_unified.add().get_patch()
     snapshot.assert_match(patch, "add_patch_diff_negative_unified")
+
+    repo = Repo(repo_path)
+    repo.git.add(".gitignore")
+    with pytest.raises(NoDiffs):
+        diff.add().get_patch()
 
 
 def test_add(git_history):
