@@ -80,11 +80,11 @@ class Diff:
         remote_head = f"{remote}/{self.repo.active_branch.name}"
 
         try:
+            self.repo.git.fetch(remote)
             remote_is_ancestor = self.repo.is_ancestor(remote_head, self.repo.head.commit)
         except GitCommandError as no_tree:
             print(f"remote {remote} not found.")
             raise Exit(1) from no_tree
-
         if not remote_is_ancestor:
             print("Remote is not an ancestor of the HEAD, cannot push without merging.")
             raise Exit(1)
