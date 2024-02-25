@@ -21,6 +21,26 @@ def fetch_remote(repo: Repo, remote: str) -> None:
         print(f"remote {remote} not found.")
         raise Exit(1) from no_remote
 
+def check_head_ancestry(repo: Repo, tree: str) -> bool:
+    """
+    Check if the tree is an ancestor of the HEAD.
+
+    Args:
+        repo (Repo): The git repository.
+        tree (str): The tree to compare against.
+
+    Raises:
+        typer.Exit: Raised when the tree is not found.
+
+    Returns:
+        bool: True if the tree is an ancestor of the HEAD, False otherwise.
+    """
+    try:
+        return repo.is_ancestor(tree, repo.head.commit)
+    except GitCommandError as no_tree:
+        print(f"{tree} not found.")
+        raise Exit(1) from no_tree
+
 
 class Diff:
     """
@@ -32,7 +52,7 @@ class Diff:
         The constructor for the Diff class.
 
         Raises:
-            Exit: Raised when no git repository is found.
+            typer.Exit: Raised when no git repository is found.
         """
         try:
             self.repo = Repo(repo_path, search_parent_directories=True)
@@ -124,6 +144,14 @@ class Diff:
         """
         remote_head = f"{remote}/{branch}"
         fetch_remote(self.repo, remote)
+        try:
+            remote_is_ancestor = self.repo.is_ancestor(remote_head, self.repo.head.commit)
+        except GitCommandError as remote_head:
+            print(f"remote head {remote_head} not found.")
+            raise Exit(1) from remote_head
+        if not remote_is_ancestor:
+            print(f"{remote_head} is not an ancestor of the HEAD, consider merging or rebasing.")
+            raise Exit(1)
 
     def get_patch(self) -> str:
         """

@@ -4,7 +4,7 @@ import pytest
 import typer
 from git import Repo
 
-from gait.diff import Diff, fetch_remote
+from gait.diff import Diff, check_head_ancestry, fetch_remote
 
 added_lines_pattern = re.compile(r"(?<=^\+)\w+(?=\s)", re.M)
 removed_lines_pattern = re.compile(r"(?<=^-)\w+(?=\s)", re.M)
@@ -48,6 +48,20 @@ def test_fetch_remote(git_history):
     with pytest.raises(typer.Exit):
         fetch_remote(repo, "nonexistent_remote")
     assert fetch_remote(repo, "origin") is None
+
+def test_check_head_ancestry(git_history):
+    repo = Repo(git_history["repo_path"])
+    with pytest.raises(typer.Exit):
+        check_head_ancestry(repo, "nonexistent_tree")
+    assert check_head_ancestry(repo, "master") is True
+
+    # Make master ahead of feature
+    repo.heads.master.checkout()
+    repo.git.add(".gitignore")
+    repo.index.commit("second commit")
+
+    repo.heads.feature.checkout()
+    assert check_head_ancestry(repo, "master") is False
 
 
 def test_init(tmp_path):
