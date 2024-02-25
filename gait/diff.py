@@ -83,6 +83,36 @@ class Diff:
         self.diffs = diff
         return self
 
+    def push(self, remote: str = "origin"):
+        """
+        Diff between the HEAD and remote.
+
+        Args:
+            remote (str): The remote to compare against. Defaults to "origin".
+        """
+        remote_head = f"{remote}/{self.repo.active_branch.name}"
+
+        try:
+            remote_is_ancestor = self.repo.is_ancestor(remote_head, self.repo.head.commit)
+        except GitCommandError as no_tree:
+            print(f"remote {remote} not found.")
+            raise Exit(1) from no_tree
+
+        if not remote_is_ancestor:
+            print("Remote is not an ancestor of the HEAD, cannot push without merging.")
+            raise Exit(1)
+
+        diff = self.repo.head.commit.diff(
+            remote_head, create_patch=True, no_ext_diff=True, R=True, unified=self.unified
+        )
+
+        if len(diff) == 0:
+            print("No changes between the HEAD and the remote.")
+            raise Exit(0)
+
+        self.diffs = diff
+        return self
+
     def get_patch(self):
         """
         Get the patch for the diffs.

@@ -10,7 +10,7 @@ added_lines_pattern = re.compile(r"(?<=^\+)\w+(?=\s)", re.M)
 removed_lines_pattern = re.compile(r"(?<=^-)\w+(?=\s)", re.M)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def git_history(tmp_path_factory):
     repo_path = tmp_path_factory.mktemp("repo")
     repo = Repo.init(repo_path)
@@ -35,7 +35,13 @@ def git_history(tmp_path_factory):
     with open(gitignore, "a") as f:
         f.write("third_line\n")
 
-    return repo_path
+    remote_repo_path = tmp_path_factory.mktemp("remote_repo")
+    Repo.init(remote_repo_path, bare=True)
+
+    repo.create_remote("origin", remote_repo_path.as_uri())
+    repo.remotes.origin.push("feature", set_upstream=True)
+
+    return {"repo_path": repo_path, "remote_repo_path": remote_repo_path}
 
 
 def test_init(tmp_path):
@@ -48,21 +54,21 @@ def test_init(tmp_path):
 
 
 def test_add(git_history):
-    repo_path = git_history
+    repo_path = git_history["repo_path"]
     patch = Diff(repo_path).add().get_patch()
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["third_line"]
 
 
 def test_commit(git_history):
-    repo_path = git_history
+    repo_path = git_history["repo_path"]
     patch = Diff(repo_path).commit().get_patch()
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["second_line"]
 
 
 def test_merge(git_history):
-    repo_path = git_history
+    repo_path = git_history["repo_path"]
     repo = Repo(repo_path)
     with pytest.raises(typer.Exit):
         Diff(repo_path).merge("master")
@@ -74,3 +80,21 @@ def test_merge(git_history):
     patch = Diff(repo_path).merge("feature").get_patch()
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["second_line", "third_line"]
+
+
+def test_push(git_history):
+    repo_path = git_history["repo_path"]
+    repo = Repo(repo_path)
+    with pytest.raises(typer.Exit):
+        print(Diff(repo_path).push())
+    with pytest.raises(typer.Exit):
+        print(Diff(repo_path).push("nonexistent_remote"))
+    repo.index.commit("added second line")
+    patch = Diff(repo_path).push().get_patch()
+    assert removed_lines_pattern.search(patch) is None
+    assert added_lines_pattern.findall(patch) == ["second_line"]
+    repo.git.reset("HEAD^", hard=True)
+    repo.git.add(".gitignore")
+    repo.index.commit("added second and third line")
+    with pytest.raises(typer.Exit):
+        print(Diff(repo_path).push())
