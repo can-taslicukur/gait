@@ -31,10 +31,6 @@ class Diff:
         diff = self.repo.index.diff(
             None, create_patch=True, no_ext_diff=True, R=False, unified=self.unified
         )
-        if len(diff) == 0:
-            print("No changes between the index and the working tree")
-            raise Exit(0)
-
         self.diffs = diff
         return self
 
@@ -45,10 +41,6 @@ class Diff:
         diff = self.repo.head.commit.diff(
             create_patch=True, no_ext_diff=True, R=False, unified=self.unified
         )
-        if len(diff) == 0:
-            print("No changes between the HEAD and the index.")
-            raise Exit(0)
-
         self.diffs = diff
         return self
 
@@ -75,11 +67,6 @@ class Diff:
         diff = self.repo.head.commit.diff(
             tree, create_patch=True, no_ext_diff=True, R=False, unified=self.unified
         )
-
-        if len(diff) == 0:
-            print("No changes between the HEAD and the tree.")
-            raise Exit(0)
-
         self.diffs = diff
         return self
 
@@ -105,13 +92,17 @@ class Diff:
         diff = self.repo.head.commit.diff(
             remote_head, create_patch=True, no_ext_diff=True, R=True, unified=self.unified
         )
-
-        if len(diff) == 0:
-            print("No changes between the HEAD and the remote.")
-            raise Exit(0)
-
         self.diffs = diff
         return self
+
+    def pr(self, branch: str, remote: str = "origin"):
+        """
+        Diff between the HEAD and the remote branch.
+
+        Args:
+            branch (str): The branch to compare HEAD against.
+            remote (str): Remote name
+        """
 
     def get_patch(self):
         """
@@ -122,5 +113,8 @@ class Diff:
             None: If no diffs are found.
         """
         if self.diffs is None:
-            return None
+            raise Exception("No diffs generated.")
+        elif len(self.diffs) == 0:
+            print("No changes found.")
+            raise Exit(0)
         return "\n".join([diff.diff.decode("utf-8") for diff in self.diffs])
