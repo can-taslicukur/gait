@@ -1,10 +1,10 @@
 import re
 
 import pytest
-import typer
 from git import Repo
 
 from gait.diff import Diff, check_head_ancestry, fetch_remote
+from gait.errors import InvalidTree, IsAncestor, NotAncestor, NotARepo
 
 added_lines_pattern = re.compile(r"(?<=^\+)\w+(?=\s)", re.M)
 removed_lines_pattern = re.compile(r"(?<=^-)\w+(?=\s)", re.M)
@@ -45,13 +45,13 @@ def git_history(tmp_path_factory):
 
 def test_fetch_remote(git_history):
     repo = Repo(git_history["repo_path"])
-    with pytest.raises(typer.Exit):
+    with pytest.raises(InvalidTree):
         fetch_remote(repo, "nonexistent_remote")
     assert fetch_remote(repo, "origin") is None
 
 def test_check_head_ancestry(git_history):
     repo = Repo(git_history["repo_path"])
-    with pytest.raises(typer.Exit):
+    with pytest.raises(InvalidTree):
         check_head_ancestry(repo, "nonexistent_tree")
     assert check_head_ancestry(repo, "master") is True
 
@@ -64,7 +64,7 @@ def test_check_head_ancestry(git_history):
     assert check_head_ancestry(repo, "master") is False
 
 def test_init(tmp_path):
-    with pytest.raises(typer.Exit):
+    with pytest.raises(NotARepo):
         Diff(tmp_path)
     repo = Repo.init(tmp_path)
     diff = Diff(tmp_path)
@@ -106,10 +106,8 @@ def test_merge(git_history):
     repo_path = git_history["repo_path"]
     repo = Repo(repo_path)
     diff = Diff(repo_path)
-    with pytest.raises(typer.Exit):
+    with pytest.raises(IsAncestor):
         diff.merge("master")
-    with pytest.raises(typer.Exit):
-        diff.merge("nonexistent_tree")
     repo.git.add(".gitignore")
     repo.index.commit("second commit")
     repo.heads.master.checkout()
@@ -122,8 +120,6 @@ def test_push(git_history):
     repo_path = git_history["repo_path"]
     repo = Repo(repo_path)
     diff = Diff(repo_path)
-    with pytest.raises(typer.Exit):
-        diff.push("nonexistent_remote")
     repo.index.commit("added second line")
     patch = diff.push().get_patch()
     assert removed_lines_pattern.search(patch) is None
@@ -135,7 +131,7 @@ def test_push(git_history):
     # Commit working tree
     repo.git.add(".gitignore")
     repo.index.commit("added second and third line")
-    with pytest.raises(typer.Exit):
+    with pytest.raises(NotAncestor):
         diff.push()
 
 
@@ -143,7 +139,7 @@ def test_pr(git_history):
     repo_path = git_history["repo_path"]
     repo = Repo(repo_path)
     diff = Diff(repo_path)
-    with pytest.raises(typer.Exit):
+    with pytest.raises(InvalidTree):
         diff.pr("nonexistent_branch")
         # master has not been pushed to origin
         diff.pr("master")
@@ -155,3 +151,14 @@ def test_pr(git_history):
     patch = diff.pr("master").get_patch()
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["second_line", "third_line"]
+
+    # Make remote master ahead of local feature
+    repo.heads.master.checkout()
+    with open(repo_path / "gitignore", "a") as f:
+        f.write("adding a line in master\n")
+    repo.git.add(".gitignore")
+    repo.index.commit("adding a line in master")
+    repo.remotes.origin.push("master")
+    repo.heads.feature.checkout()
+    with pytest.raises(NotAncestor):
+        diff.pr("master")

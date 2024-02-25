@@ -3,6 +3,8 @@ from pathlib import Path
 from git import GitCommandError, InvalidGitRepositoryError, Repo
 from typer import Exit
 
+from .errors import InvalidTree, IsAncestor, NotAncestor, NotARepo
+
 
 def fetch_remote(repo: Repo, remote: str) -> None:
     """
@@ -18,8 +20,8 @@ def fetch_remote(repo: Repo, remote: str) -> None:
     try:
         repo.git.fetch(remote)
     except GitCommandError as no_remote:
-        print(f"remote {remote} not found.")
-        raise Exit(1) from no_remote
+        raise InvalidTree from no_remote
+
 
 def check_head_ancestry(repo: Repo, tree: str) -> bool:
     """
@@ -38,8 +40,7 @@ def check_head_ancestry(repo: Repo, tree: str) -> bool:
     try:
         return repo.is_ancestor(tree, repo.head.commit)
     except GitCommandError as no_tree:
-        print(f"{tree} not found.")
-        raise Exit(1) from no_tree
+        raise InvalidTree from no_tree
 
 
 class Diff:
@@ -57,8 +58,7 @@ class Diff:
         try:
             self.repo = Repo(repo_path, search_parent_directories=True)
         except InvalidGitRepositoryError as no_git:
-            print("no git repository found.")
-            raise Exit(1) from no_git
+            raise NotARepo from no_git
         self.diffs = None
         self.repo_path = repo_path
         self.unified = unified
@@ -93,8 +93,7 @@ class Diff:
         """
         tree_is_ancestor = check_head_ancestry(self.repo, tree)
         if tree_is_ancestor:
-            print("Tree is an ancestor of the HEAD. No changes to review.")
-            raise Exit(0)
+            raise IsAncestor
 
         self.diffs = self.repo.head.commit.diff(
             tree, create_patch=True, no_ext_diff=True, R=False, unified=self.unified
@@ -113,8 +112,7 @@ class Diff:
         fetch_remote(self.repo, remote)
         remote_is_ancestor = check_head_ancestry(self.repo, remote_head)
         if not remote_is_ancestor:
-            print("Remote is not an ancestor of the HEAD, cannot push without merging.")
-            raise Exit(1)
+            raise NotAncestor
 
         self.diffs = self.repo.head.commit.diff(
             remote_head, create_patch=True, no_ext_diff=True, R=True, unified=self.unified
@@ -133,8 +131,7 @@ class Diff:
         fetch_remote(self.repo, remote)
         remote_head_is_ancestor = check_head_ancestry(self.repo, remote_head)
         if not remote_head_is_ancestor:
-            print(f"{remote_head} is not an ancestor of the HEAD, consider merging or rebasing.")
-            raise Exit(1)
+            raise NotAncestor
         self.diffs = self.repo.head.commit.diff(
             remote_head, create_patch=True, no_ext_diff=True, R=True, unified=self.unified
         )
