@@ -1,9 +1,11 @@
 [tool.poetry]
 name = "gait"
 version = "0.1.0"
-description = ""
+description = "Review your code changes in a git repository using OpenAI's GPT models"
 authors = ["Can Taşlıçukur <can.taslicukur@ozu.edu.tr>"]
 readme = "README.md"
+license = "Apache-2.0"
+repository = "https://github.com/can-taslicukur/gait/tree/main"
 
 [tool.poetry.scripts]
 gait = "gait.main:app"
