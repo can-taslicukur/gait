@@ -4,14 +4,14 @@ import pytest
 from git import Repo
 
 from gait.diff import Diff, check_head_ancestry, fetch_remote
-from gait.errors import InvalidTree, IsAncestor, NoDiffs, NotAncestor, NotARepo
+from gait.errors import InvalidRemote, InvalidTree, IsAncestor, NoDiffs, NotAncestor, NotARepo
 
 added_lines_pattern = re.compile(r"(?<=^\+)\w+(?=\s)", re.M)
 removed_lines_pattern = re.compile(r"(?<=^-)\w+(?=\s)", re.M)
 
 def test_fetch_remote(git_history):
     repo = Repo(git_history["repo_path"])
-    with pytest.raises(InvalidTree):
+    with pytest.raises(InvalidRemote):
         fetch_remote(repo, "nonexistent_remote")
     assert fetch_remote(repo, "origin") is None
 

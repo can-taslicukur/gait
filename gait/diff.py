@@ -2,7 +2,7 @@ from pathlib import Path
 
 from git import GitCommandError, InvalidGitRepositoryError, Repo
 
-from .errors import InvalidTree, IsAncestor, NoDiffs, NotAncestor, NotARepo
+from .errors import InvalidRemote, InvalidTree, IsAncestor, NoDiffs, NotAncestor, NotARepo
 
 
 def fetch_remote(repo: Repo, remote: str) -> None:
@@ -18,7 +18,7 @@ def fetch_remote(repo: Repo, remote: str) -> None:
     try:
         repo.git.fetch(remote)
     except GitCommandError as no_remote:
-        raise InvalidTree from no_remote
+        raise InvalidRemote from no_remote
 
 
 def check_head_ancestry(repo: Repo, tree: str) -> bool:

@@ -9,6 +9,11 @@ class InvalidTree(Exception):
 
     pass
 
+class InvalidRemote(Exception):
+    "Raised when the remote is not valid."
+
+    pass
+
 
 class NoDiffs(Exception):
     "Raised when there are no diffs to review."
