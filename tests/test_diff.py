@@ -6,49 +6,19 @@ from git import Repo
 from gait.diff import Diff, check_head_ancestry, fetch_remote
 from gait.errors import InvalidTree, IsAncestor, NoDiffs, NotAncestor, NotARepo
 
+from .fixtures.git_history import git_history  # noqa: F401
+
 added_lines_pattern = re.compile(r"(?<=^\+)\w+(?=\s)", re.M)
 removed_lines_pattern = re.compile(r"(?<=^-)\w+(?=\s)", re.M)
 
-
-@pytest.fixture(scope="function")
-def git_history(tmp_path_factory):
-    repo_path = tmp_path_factory.mktemp("repo")
-    repo = Repo.init(repo_path)
-    gitignore = repo_path / ".gitignore"
-
-    # First commit
-    with open(gitignore, "w") as f:
-        f.write("first_line\n")
-    repo.git.add(".gitignore")
-    repo.index.commit("first commit")
-
-    # Create a feature branch and checkout
-    repo.create_head("feature")
-    repo.heads.feature.checkout()
-
-    # Adding second line and staging
-    with open(gitignore, "a") as f:
-        f.write("second_line\n")
-    repo.git.add(".gitignore")
-
-    # Adding third line
-    with open(gitignore, "a") as f:
-        f.write("third_line\n")
-
-    remote_repo_path = tmp_path_factory.mktemp("remote_repo")
-    Repo.init(remote_repo_path, bare=True)
-
-    repo.create_remote("origin", remote_repo_path.as_uri())
-    repo.remotes.origin.push("feature", set_upstream=True)
-
-    return {"repo_path": repo_path, "remote_repo_path": remote_repo_path}
-
+@pytest.mark.usefixtures("git_history")
 def test_fetch_remote(git_history):
     repo = Repo(git_history["repo_path"])
     with pytest.raises(InvalidTree):
         fetch_remote(repo, "nonexistent_remote")
     assert fetch_remote(repo, "origin") is None
 
+@pytest.mark.usefixtures("git_history")
 def test_check_head_ancestry(git_history):
     repo = Repo(git_history["repo_path"])
     with pytest.raises(InvalidTree):
@@ -63,6 +33,7 @@ def test_check_head_ancestry(git_history):
     repo.heads.feature.checkout()
     assert check_head_ancestry(repo, "master") is False
 
+@pytest.mark.usefixtures("git_history")
 def test_init(tmp_path):
     with pytest.raises(NotARepo):
         Diff(tmp_path)
@@ -71,7 +42,7 @@ def test_init(tmp_path):
     assert diff.repo == repo
     assert diff.unified == 3
 
-
+@pytest.mark.usefixtures("git_history")
 def test_get_patch(git_history, snapshot):
     repo_path = git_history["repo_path"]
     diff = Diff(repo_path)
@@ -90,7 +61,7 @@ def test_get_patch(git_history, snapshot):
     with pytest.raises(NoDiffs):
         diff.add().get_patch()
 
-
+@pytest.mark.usefixtures("git_history")
 def test_add(git_history):
     repo_path = git_history["repo_path"]
     diff = Diff(repo_path)
@@ -98,7 +69,7 @@ def test_add(git_history):
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["third_line"]
 
-
+@pytest.mark.usefixtures("git_history")
 def test_commit(git_history):
     repo_path = git_history["repo_path"]
     diff = Diff(repo_path)
@@ -106,7 +77,7 @@ def test_commit(git_history):
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["second_line"]
 
-
+@pytest.mark.usefixtures("git_history")
 def test_merge(git_history):
     repo_path = git_history["repo_path"]
     repo = Repo(repo_path)
@@ -120,7 +91,7 @@ def test_merge(git_history):
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["second_line", "third_line"]
 
-
+@pytest.mark.usefixtures("git_history")
 def test_push(git_history):
     repo_path = git_history["repo_path"]
     repo = Repo(repo_path)
@@ -139,7 +110,7 @@ def test_push(git_history):
     with pytest.raises(NotAncestor):
         diff.push()
 
-
+@pytest.mark.usefixtures("git_history")
 def test_pr(git_history):
     repo_path = git_history["repo_path"]
     repo = Repo(repo_path)
