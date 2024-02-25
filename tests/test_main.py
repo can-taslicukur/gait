@@ -32,15 +32,16 @@ class MockOpenAI:
 
 
 @pytest.fixture
-def mock_openai(monkeypatch):
+def mock_openai(monkeypatch, git_history: git_history):
+    monkeypatch.chdir(git_history["repo_path"])
     monkeypatch.setattr("gait.main.OpenAI", MockOpenAI)
     monkeypatch.setattr("gait.main.AuthenticationError", MockAuthenticationError)
     monkeypatch.setattr("gait.main.NotFoundError", MockNotFoundError)
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
 
-@pytest.mark.usefixtures("git_history")
-def test_main(git_history: git_history, mock_openai):
+
+def test_main(mock_openai):
     result = runner.invoke(app, ["--help"])
     assert "OpenAI Parameters" in result.stdout
     assert "Git Parameters" in result.stdout

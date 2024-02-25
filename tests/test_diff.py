@@ -11,14 +11,12 @@ from .fixtures.git_history import git_history
 added_lines_pattern = re.compile(r"(?<=^\+)\w+(?=\s)", re.M)
 removed_lines_pattern = re.compile(r"(?<=^-)\w+(?=\s)", re.M)
 
-@pytest.mark.usefixtures("git_history")
 def test_fetch_remote(git_history: git_history):
     repo = Repo(git_history["repo_path"])
     with pytest.raises(InvalidTree):
         fetch_remote(repo, "nonexistent_remote")
     assert fetch_remote(repo, "origin") is None
 
-@pytest.mark.usefixtures("git_history")
 def test_check_head_ancestry(git_history: git_history):
     repo = Repo(git_history["repo_path"])
     with pytest.raises(InvalidTree):
@@ -42,7 +40,6 @@ def test_init(tmp_path):
     assert diff.repo == repo
     assert diff.unified == 3
 
-@pytest.mark.usefixtures("git_history")
 def test_get_patch(git_history: git_history, snapshot):
     repo_path = git_history["repo_path"]
     diff = Diff(repo_path)
@@ -61,7 +58,6 @@ def test_get_patch(git_history: git_history, snapshot):
     with pytest.raises(NoDiffs):
         diff.add().get_patch()
 
-@pytest.mark.usefixtures("git_history")
 def test_add(git_history: git_history):
     repo_path = git_history["repo_path"]
     diff = Diff(repo_path)
@@ -69,7 +65,6 @@ def test_add(git_history: git_history):
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["third_line"]
 
-@pytest.mark.usefixtures("git_history")
 def test_commit(git_history: git_history):
     repo_path = git_history["repo_path"]
     diff = Diff(repo_path)
@@ -77,7 +72,6 @@ def test_commit(git_history: git_history):
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["second_line"]
 
-@pytest.mark.usefixtures("git_history")
 def test_merge(git_history: git_history):
     repo_path = git_history["repo_path"]
     repo = Repo(repo_path)
@@ -91,7 +85,6 @@ def test_merge(git_history: git_history):
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["second_line", "third_line"]
 
-@pytest.mark.usefixtures("git_history")
 def test_push(git_history: git_history):
     repo_path = git_history["repo_path"]
     repo = Repo(repo_path)
@@ -110,7 +103,6 @@ def test_push(git_history: git_history):
     with pytest.raises(NotAncestor):
         diff.push()
 
-@pytest.mark.usefixtures("git_history")
 def test_pr(git_history: git_history):
     repo_path = git_history["repo_path"]
     repo = Repo(repo_path)
