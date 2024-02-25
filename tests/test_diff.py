@@ -75,14 +75,16 @@ def test_init(tmp_path):
 
 def test_add(git_history):
     repo_path = git_history["repo_path"]
-    patch = Diff(repo_path).add().get_patch()
+    diff = Diff(repo_path)
+    patch = diff.add().get_patch()
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["third_line"]
 
 
 def test_commit(git_history):
     repo_path = git_history["repo_path"]
-    patch = Diff(repo_path).commit().get_patch()
+    diff = Diff(repo_path)
+    patch = diff.commit().get_patch()
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["second_line"]
 
@@ -90,14 +92,15 @@ def test_commit(git_history):
 def test_merge(git_history):
     repo_path = git_history["repo_path"]
     repo = Repo(repo_path)
+    diff = Diff(repo_path)
     with pytest.raises(typer.Exit):
-        Diff(repo_path).merge("master")
+        diff.merge("master")
     with pytest.raises(typer.Exit):
-        Diff(repo_path).merge("nonexistent_tree")
+        diff.merge("nonexistent_tree")
     repo.git.add(".gitignore")
     repo.index.commit("second commit")
     repo.heads.master.checkout()
-    patch = Diff(repo_path).merge("feature").get_patch()
+    patch = diff.merge("feature").get_patch()
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["second_line", "third_line"]
 
@@ -105,10 +108,11 @@ def test_merge(git_history):
 def test_push(git_history):
     repo_path = git_history["repo_path"]
     repo = Repo(repo_path)
+    diff = Diff(repo_path)
     with pytest.raises(typer.Exit):
-        Diff(repo_path).push("nonexistent_remote")
+        diff.push("nonexistent_remote")
     repo.index.commit("added second line")
-    patch = Diff(repo_path).push().get_patch()
+    patch = diff.push().get_patch()
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["second_line"]
 
@@ -119,4 +123,22 @@ def test_push(git_history):
     repo.git.add(".gitignore")
     repo.index.commit("added second and third line")
     with pytest.raises(typer.Exit):
-        Diff(repo_path).push()
+        diff.push()
+
+
+def test_pr(git_history):
+    repo_path = git_history["repo_path"]
+    repo = Repo(repo_path)
+    diff = Diff(repo_path)
+    with pytest.raises(typer.Exit):
+        diff.pr("nonexistent_branch")
+        # master has not been pushed to origin
+        diff.pr("master")
+    repo.remotes.origin.push("master", set_upstream=True)
+    assert len(diff.pr("master").diffs) == 0
+
+    repo.git.add(".gitignore")
+    repo.index.commit("added second and third line")
+    patch = diff.pr("master").get_patch()
+    assert removed_lines_pattern.search(patch) is None
+    assert added_lines_pattern.findall(patch) == ["second_line", "third_line"]
