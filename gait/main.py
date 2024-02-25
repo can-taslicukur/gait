@@ -32,13 +32,13 @@ def main(
     unified: Annotated[
         int,
         typer.Option(
-            help="Context lines to show before and after the change",
+            help="Context line length on each side of the diff hunk",
             rich_help_panel="Git Parameters",
         ),
     ] = 3,
 ):
     try:
-        diff = Diff(Path("."))
+        diff = Diff(Path("."), unified=unified)
     except NotARepo as not_a_repo:
         print("Not a git repository")
         raise typer.Abort() from not_a_repo
@@ -74,7 +74,8 @@ def main(
 
 @app.command()
 def add(ctx: typer.Context):
-    pass
+    diff = ctx.obj.diff.add()
+    print(diff.get_patch())
 
 
 if __name__ == "__main__":
