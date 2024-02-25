@@ -1,71 +1,64 @@
-import os
+from types import SimpleNamespace
 
 import typer
+from openai import AuthenticationError, NotFoundError, OpenAI
 from typing_extensions import Annotated
 
-from .diff import Diff
-from .reviewer import Reviewer
-
-app = typer.Typer(no_args_is_help=True)
-
-@app.command()
-def add():
-    """
-    Review changes between the working tree and index.
-    """
-    diff = Diff()
-    repo = diff.get_repo()
-    diff.generate_diffs(repo.index.diff, None)
-    if len(diff.diffs) > 0:
-        patch = diff.get_patch()
-        Reviewer(api_key=os.environ.get("OPENAI_API_KEY")).review(patch)
-    else:
-        print("No changes between working tree and index to review.")
+app = typer.Typer()
 
 
-@app.command()
-def commit():
-    """
-    Review changes between the index and HEAD.
-    """
-    diff = Diff()
-    repo = diff.get_repo()
-    diff.generate_diffs(repo.head.commit.diff)
-    if len(diff.diffs) > 0:
-        patch = diff.get_patch()
-        Reviewer(api_key=os.environ.get("OPENAI_API_KEY")).review(patch)
-    else:
-        print("No changes between index and the tree to review.")
+@app.callback(invoke_without_command=True)
+def main(
+    ctx: typer.Context,
+    openai_api_key: Annotated[
+        str,
+        typer.Option(
+            help="OpenAI API key", envvar="OPENAI_API_KEY", rich_help_panel="OpenAI Parameters"
+        ),
+    ],
+    model: Annotated[
+        str, typer.Option(help="OpenAI GPT model", rich_help_panel="OpenAI Parameters")
+    ] = "gpt-3.5-turbo",
+    temperature: Annotated[
+        int,
+        typer.Option(
+            min=0, max=2, help="Temperature for the model", rich_help_panel="OpenAI Parameters"
+        ),
+    ] = 1,
+    unified: Annotated[
+        int,
+        typer.Option(
+            help="Context lines to show before and after the change",
+            rich_help_panel="Git Parameters",
+        ),
+    ] = 3,
+):
+    if not model.startswith("gpt"):
+        raise typer.BadParameter(
+            "Only gpt models are supported", ctx=ctx, param=model, param_hint="model"
+        )
+    client = OpenAI(api_key=openai_api_key)
+    try:
+        client.models.retrieve(model=model)
+    except AuthenticationError as auth_error:
+        raise typer.BadParameter(
+            "Invalid OpenAI API key", ctx=ctx, param=openai_api_key, param_hint="openai_api_key"
+        ) from auth_error
+    except NotFoundError as no_model:
+        raise typer.BadParameter(
+            f"{model} does not exist", ctx=ctx, param=model, param_hint="model"
+        ) from no_model
 
+    ctx.obj = SimpleNamespace(
+        client=client,
+        openai_api_key=openai_api_key,
+        model=model,
+        temperature=temperature,
+        unified=unified,
+    )
 
-@app.command()
-def merge(tree: Annotated[str, typer.Argument(help="The tree to compare against.")]):
-    """
-    Review merge changes
-    """
-    diff = Diff()
-    repo = diff.get_repo()
-    diff.generate_diffs(repo.head.commit.diff, tree)
-    if len(diff.diffs) > 0:
-        patch = diff.get_patch()
-        Reviewer(api_key=os.environ.get("OPENAI_API_KEY")).review(patch)
-    else:
-        print("No changes between trees to review.")
-
-
-@app.command()
-def pr(tree: Annotated[str, typer.Argument(help="The tree to send a pull request.")]):
-    """
-    Review a Pull Request
-    """
-    diff = Diff()
-    repo = diff.get_repo()
-    diff.generate_diffs(repo.head.commit.diff, tree, R=True)
-    if len(diff.diffs) > 0:
-        patch = diff.get_patch()
-        Reviewer(api_key=os.environ.get("OPENAI_API_KEY")).review(patch)
-    else:
-        print("No changes to review.")
+    if ctx.invoked_subcommand is None:
+        ctx.get_help()
 
 
 if __name__ == "__main__":
