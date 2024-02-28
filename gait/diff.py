@@ -106,6 +106,8 @@ class Diff:
 
         Raises:
             IsAncestor: When the tree is an ancestor of the HEAD.
+            DirtyRepo: When the repository has uncommitted changes.
+            GitCommandError: When the merge fails, except conflicts.
 
         Returns:
             Diff: The Diff object.
