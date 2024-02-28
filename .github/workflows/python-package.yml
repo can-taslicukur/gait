@@ -31,6 +31,10 @@ jobs:
         pipx ensurepath
         pipx install poetry
         poetry install
+    - name: Set CI git user
+      run: |
+          git config --global user.email "ci-bot@example.com"
+          git config --global user.name "CI Bot"
     - name: Lint with Ruff
       uses: chartboost/ruff-action@v1
     - name: Test with pytest
