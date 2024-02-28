@@ -2,7 +2,15 @@ from pathlib import Path
 
 from git import GitCommandError, InvalidGitRepositoryError, Repo
 
-from .errors import InvalidRemote, InvalidTree, IsAncestor, NoDiffs, NotAncestor, NotARepo
+from .errors import (
+    DirtyRepo,
+    InvalidRemote,
+    InvalidTree,
+    IsAncestor,
+    NoDiffs,
+    NotAncestor,
+    NotARepo,
+)
 
 
 def fetch_remote(repo: Repo, remote: str) -> None:
@@ -73,7 +81,7 @@ class Diff:
             Diff: The Diff object.
         """
         self.diffs = self.repo.index.diff(
-            None, create_patch=True, no_ext_diff=True, R=False, unified=self.unified
+            None, create_patch=True, no_ext_diff=True, unified=self.unified
         )
         return self
 
@@ -85,7 +93,7 @@ class Diff:
             Diff: The Diff object.
         """
         self.diffs = self.repo.head.commit.diff(
-            create_patch=True, no_ext_diff=True, R=False, unified=self.unified
+            create_patch=True, no_ext_diff=True, unified=self.unified
         )
         return self
 
@@ -106,9 +114,24 @@ class Diff:
         if tree_is_ancestor:
             raise IsAncestor
 
+        if self.repo.is_dirty():
+            raise DirtyRepo
+
+        has_conflict = False
+        try:
+            self.repo.git.merge(tree, no_commit=True, no_ff=True)
+        except GitCommandError as command_error:
+            if "CONFLICT" in command_error.stdout:
+                has_conflict = True
+            else:
+                raise command_error
         self.diffs = self.repo.head.commit.diff(
-            tree, create_patch=True, no_ext_diff=True, R=False, unified=self.unified
+            None, create_patch=True, no_ext_diff=True, unified=self.unified
         )
+        if has_conflict:
+            self.repo.git.merge(abort=True)
+        else:
+            self.repo.git.reset(hard=True)
         return self
 
     def push(self, remote: str = "origin") -> "Diff":

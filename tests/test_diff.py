@@ -4,10 +4,20 @@ import pytest
 from git import Repo
 
 from gait.diff import Diff, check_head_ancestry, fetch_remote
-from gait.errors import InvalidRemote, InvalidTree, IsAncestor, NoDiffs, NotAncestor, NotARepo
+from gait.errors import (
+    DirtyRepo,
+    InvalidRemote,
+    InvalidTree,
+    IsAncestor,
+    NoDiffs,
+    NotAncestor,
+    NotARepo,
+)
 
-added_lines_pattern = re.compile(r"(?<=^\+)\w+(?=\s)", re.M)
-removed_lines_pattern = re.compile(r"(?<=^-)\w+(?=\s)", re.M)
+added_lines_pattern = re.compile(r"(?<=^\+)\w+(?=\n)", re.M)
+removed_lines_pattern = re.compile(r"(?<=^-)\w+(?=\n)", re.M)
+conflict_ours_pattern = re.compile(r"(?<=^\+\<{7} HEAD\n\s).+(?=\n\+\={7}\n)", re.M)
+
 
 def test_fetch_remote(git_history):
     repo = Repo(git_history["repo_path"])
@@ -81,9 +91,29 @@ def test_merge(git_history):
     repo.git.add(".gitignore")
     repo.index.commit("second commit")
     repo.heads.master.checkout()
+    sha_before_merge = repo.head.commit.hexsha
     patch = diff.merge("feature").get_patch()
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["second_line", "third_line"]
+    assert sha_before_merge == repo.head.commit.hexsha
+
+    # make repo dirty
+    with open(repo_path / ".gitignore", "a") as f:
+        f.write("conflict\n")
+    with pytest.raises(DirtyRepo):
+        diff.merge("feature")
+    repo.git.add(".gitignore")
+    with pytest.raises(DirtyRepo):
+        diff.merge("feature")
+
+    # create conflict
+    repo.index.commit("conflict")
+    sha_before_merge = repo.head.commit.hexsha
+    patch = diff.merge("feature").get_patch()
+    print(patch)
+    assert conflict_ours_pattern.findall(patch) == ["conflict"]
+    assert sha_before_merge == repo.head.commit.hexsha
+
 
 def test_push(git_history):
     repo_path = git_history["repo_path"]

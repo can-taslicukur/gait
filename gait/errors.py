@@ -31,3 +31,8 @@ class IsAncestor(Exception):
     "Raised when the tree is an ancestor of the HEAD."
 
     pass
+
+class DirtyRepo(Exception):
+    "Raised when the repository is dirty."
+
+    pass
