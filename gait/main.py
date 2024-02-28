@@ -180,16 +180,17 @@ def pr(
     target_branch: Annotated[str, typer.Argument(help="target branch to compare")],
     remote: Annotated[str, typer.Argument(help="remote of the target branch")] = "origin",
 ):
+    remote_target_ref = f"{remote}/{target_branch}"
     try:
         patch = ctx.obj.diff.pr(target_branch, remote).get_patch()
     except InvalidRemote as invalid_remote:
         print(f"{remote} is not a valid remote")
         raise typer.Abort() from invalid_remote
     except InvalidTree as invalid_tree:
-        print(f"{target_branch} is not a valid tree")
+        print(f"{remote_target_ref} is not a valid tree")
         raise typer.Abort() from invalid_tree
     except NotAncestor as not_ancestor:
-        print(f"{remote}/{target_branch} is not an ancestor of the HEAD")
+        print(f"{remote_target_ref} is not an ancestor of the HEAD")
         raise typer.Abort() from not_ancestor
     except NoDiffs as no_diffs:
         print("No diffs to review")
