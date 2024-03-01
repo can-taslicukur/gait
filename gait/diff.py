@@ -99,9 +99,9 @@ class Diff:
         )
         return self
 
-    def _create_tmp_branch(self):
+    def _create_tmp_branch(self, from_commit: str = "HEAD") -> str:
         tmp_branch = f"tmp-{uuid.uuid4()}"
-        self.repo.create_head(tmp_branch)
+        self.repo.create_head(tmp_branch, from_commit)
         return tmp_branch
 
     def merge(self, tree: str) -> "Diff":

@@ -56,6 +56,19 @@ def test_create_tmp_branch(git_history):
 
     assert tmp_branch.startswith("tmp-")
     assert tmp_branch in diff.repo.heads
+    assert diff.repo.heads[tmp_branch].commit.hexsha == diff.repo.head.commit.hexsha
+    diff.repo.git.add(".gitignore")
+    diff.repo.index.commit("second commit")
+    assert diff.repo.heads.master.commit.hexsha != diff.repo.heads.feature.commit.hexsha
+
+    tmp_branch_from_master = diff._create_tmp_branch("master")
+
+    assert tmp_branch_from_master.startswith("tmp-")
+    assert tmp_branch_from_master in diff.repo.heads
+    assert (
+        diff.repo.heads[tmp_branch_from_master].commit.hexsha
+        == diff.repo.heads.master.commit.hexsha
+    )
 
 
 def test_get_patch(git_history, snapshot):
