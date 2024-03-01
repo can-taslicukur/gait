@@ -7,6 +7,7 @@ from .errors import (
     InvalidRemote,
     InvalidTree,
     IsAncestor,
+    NoCodeChanges,
     NoDiffs,
     NotAncestor,
     NotARepo,
@@ -200,4 +201,7 @@ class Diff:
             raise Exception("No diffs generated.")
         elif len(self.diffs) == 0:
             raise NoDiffs
-        return "\n".join([diff.diff.decode("utf-8") for diff in self.diffs])
+        patch = "\n".join([diff.diff.decode("utf-8") for diff in self.diffs])
+        if patch.strip() == "":
+            raise NoCodeChanges
+        return patch

@@ -36,3 +36,9 @@ class DirtyRepo(Exception):
     "Raised when the repository is dirty."
 
     pass
+
+
+class NoCodeChanges(Exception):
+    "Raised when there is a diff but no code changes."
+
+    pass
