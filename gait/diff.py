@@ -126,6 +126,10 @@ class Diff:
         if self.repo.is_dirty():
             raise DirtyRepo
 
+        active_branch = self.repo.active_branch.name
+        tmp_branch = self._create_tmp_branch()
+        self.repo.heads[tmp_branch].checkout()
+
         has_conflict = False
         try:
             self.repo.git.merge(tree, no_commit=True, no_ff=True)
@@ -141,6 +145,9 @@ class Diff:
             self.repo.git.merge(abort=True)
         else:
             self.repo.git.reset(hard=True)
+
+        self.repo.heads[active_branch].checkout()
+        self.repo.delete_head(tmp_branch, force=True)
         return self
 
     def push(self, remote: str = "origin") -> "Diff":

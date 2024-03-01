@@ -100,10 +100,12 @@ def test_merge(git_history):
     repo.index.commit("second commit")
     repo.heads.master.checkout()
     sha_before_merge = repo.head.commit.hexsha
+    branches_before_merge = repo.heads
     patch = diff.merge("feature").get_patch()
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["second_line", "third_line"]
     assert sha_before_merge == repo.head.commit.hexsha
+    assert branches_before_merge == repo.heads
 
     # make repo dirty
     with open(repo_path / ".gitignore", "a") as f:
@@ -117,10 +119,12 @@ def test_merge(git_history):
     # create conflict
     repo.index.commit("conflict")
     sha_before_merge = repo.head.commit.hexsha
+    branches_before_merge = repo.heads
     patch = diff.merge("feature").get_patch()
     print(patch)
     assert conflict_ours_pattern.findall(patch) == ["conflict"]
     assert sha_before_merge == repo.head.commit.hexsha
+    assert branches_before_merge == repo.heads
 
 
 def test_push(git_history):
