@@ -1,3 +1,4 @@
+import uuid
 from pathlib import Path
 
 from git import GitCommandError, InvalidGitRepositoryError, Repo
@@ -97,6 +98,11 @@ class Diff:
             create_patch=True, no_ext_diff=True, unified=self.unified
         )
         return self
+
+    def _create_tmp_branch(self):
+        tmp_branch = f"tmp-{uuid.uuid4()}"
+        self.repo.create_head(tmp_branch)
+        return tmp_branch
 
     def merge(self, tree: str) -> "Diff":
         """

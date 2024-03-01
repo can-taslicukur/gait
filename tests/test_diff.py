@@ -39,7 +39,6 @@ def test_check_head_ancestry(git_history):
     repo.heads.feature.checkout()
     assert check_head_ancestry(repo, "master") is False
 
-
 def test_init(git_history):
     no_repo_path = git_history["no_repo_path"]
     repo_path = git_history["repo_path"]
@@ -49,6 +48,15 @@ def test_init(git_history):
     diff = Diff(repo_path)
     assert diff.repo == repo
     assert diff.unified == 3
+
+def test_create_tmp_branch(git_history):
+    repo_path = git_history["repo_path"]
+    diff = Diff(repo_path)
+    tmp_branch = diff._create_tmp_branch()
+
+    assert tmp_branch.startswith("tmp-")
+    assert tmp_branch in diff.repo.heads
+
 
 def test_get_patch(git_history, snapshot):
     repo_path = git_history["repo_path"]
