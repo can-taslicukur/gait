@@ -1,7 +1,7 @@
 import pytest
 from git import Repo
 
-from gait.diff import Diff, check_head_ancestry, fetch_remote
+from gait.diff import Diff, check_ancestry, fetch_remote
 from gait.errors import (
     DirtyRepo,
     InvalidRemote,
@@ -19,11 +19,12 @@ def test_fetch_remote(git_history):
         fetch_remote(repo, "nonexistent_remote")
     assert fetch_remote(repo, "origin") is None
 
-def test_check_head_ancestry(git_history):
+def test_check_ancestry(git_history):
     repo = Repo(git_history["repo_path"])
     with pytest.raises(InvalidTree):
-        check_head_ancestry(repo, "nonexistent_tree")
-    assert check_head_ancestry(repo, "master") is True
+        check_ancestry(repo, "nonexistent_tree")
+    assert check_ancestry(repo, "master") is True
+    assert check_ancestry(repo, "feature", "master") is True
 
     # Make master ahead of feature
     repo.heads.master.checkout()
@@ -31,7 +32,9 @@ def test_check_head_ancestry(git_history):
     repo.index.commit("second commit")
 
     repo.heads.feature.checkout()
-    assert check_head_ancestry(repo, "master") is False
+    assert check_ancestry(repo, "master") is False
+    assert check_ancestry(repo, "feature", "master") is True
+
 
 def test_init(git_history):
     no_repo_path = git_history["no_repo_path"]
@@ -211,6 +214,12 @@ def test_pr(git_history, snapshot):
     repo.heads.feature.checkout()
     patch = diff.pr("master").create_patch()
     snapshot.assert_match(patch, "pr_conflict_patch")
+
+    # Make local feature ancestor of remote master
+    repo.git.reset("HEAD^", hard=True)
+    with pytest.raises(IsAncestor):
+        diff.pr("master")
+
 
 def test_review_patch(mock_openai, git_history):
     openai_client = mock_openai["MockOpenAI"]("test-key")

@@ -33,21 +33,23 @@ def fetch_remote(repo: Repo, remote: str) -> None:
         raise InvalidRemote from no_remote
 
 
-def check_head_ancestry(repo: Repo, tree: str) -> bool:
-    """Check if the tree is an ancestor of the HEAD.
+def check_ancestry(repo: Repo, ancestor_commit: str, commit: str = "HEAD") -> bool:
+    """
+    Check if the commit is an ancestor of the ancestor commit.
 
     Args:
-        repo (Repo): The git repository.
-        tree (str): The tree to compare against.
+        repo (Repo): Repo object to compare the commits.
+        ancestor_commit (str): Commit to verify to be an ancestor.
+        commit (str, optional): Commit to compare against the ancestor commit. Defaults to "HEAD".
 
     Raises:
-        InvalidTree: Raised when the tree is not found.
+        InvalidTree: If the commit or the ancestor commit is not found.
 
     Returns:
-        bool: True if the tree is an ancestor of the HEAD, False otherwise.
+        bool: Whether the ancestor_commit is an ancestor of the commit.
     """
     try:
-        return repo.is_ancestor(tree, repo.head.commit)
+        return repo.is_ancestor(ancestor_commit, commit)
     except GitCommandError as no_tree:
         raise InvalidTree from no_tree
 
@@ -80,7 +82,7 @@ class Diff:
 
     def add(self) -> "Diff":
         """
-        Diff between the index and the working tree.
+        Set diffs to the diffs between the index and the working tree.
 
         Returns:
             Diff: The Diff object.
@@ -92,7 +94,7 @@ class Diff:
 
     def commit(self) -> "Diff":
         """
-        Diff between the HEAD and the index.
+        Set diffs to the diffs between the HEAD and the index.
 
         Returns:
             Diff: The Diff object.
@@ -103,11 +105,33 @@ class Diff:
         return self
 
     def _create_tmp_branch(self, from_commit: str = "HEAD") -> str:
+        """
+        Create a temporary branch from a commit.
+
+        Args:
+            from_commit (str, optional): The commit to create the branch from. Defaults to "HEAD".
+
+        Returns:
+            str: Name of the temporary branch.
+        """
         tmp_branch = f"tmp-{uuid.uuid4()}"
         self.repo.create_head(tmp_branch, from_commit)
         return tmp_branch
 
     def _merge_on_temp_branch(self, feature_commit: str, base_commit: str) -> List[diff.Diff]:
+        """
+        Merge the feature commit into the base commit on a temporary branch and set the diffs.
+
+        Args:
+            feature_commit (str): The commit to merge into the base commit.
+            base_commit (str): The commit to merge the feature commit into.
+
+        Raises:
+            DirtyRepo: If the repository has uncommitted changes.
+
+        Returns:
+            List[diff.Diff]: The diffs between the base and the feature commit.
+        """
         if self.repo.is_dirty():
             raise DirtyRepo
         # Save current branch to get back to it later
@@ -140,20 +164,18 @@ class Diff:
 
     def merge(self, tree: str) -> "Diff":
         """
-        Diff between the HEAD and the tree.
+        Set diffs to the diffs between the HEAD and the tree.
 
         Args:
             tree (str): The tree to compare against.
 
         Raises:
-            IsAncestor: When the tree is an ancestor of the HEAD.
-            DirtyRepo: When the repository has uncommitted changes.
-            GitCommandError: When the merge fails, except conflicts.
+            IsAncestor: When the tree is already an ancestor of the HEAD.
 
         Returns:
             Diff: The Diff object.
         """
-        tree_is_ancestor = check_head_ancestry(self.repo, tree)
+        tree_is_ancestor = check_ancestry(self.repo, tree)
         if tree_is_ancestor:
             raise IsAncestor
 
@@ -177,7 +199,7 @@ class Diff:
         remote_head = f"{remote}/{self.repo.active_branch.name}"
 
         fetch_remote(self.repo, remote)
-        remote_is_ancestor = check_head_ancestry(self.repo, remote_head)
+        remote_is_ancestor = check_ancestry(self.repo, remote_head)
         if not remote_is_ancestor:
             raise NotAncestor
 
@@ -195,7 +217,7 @@ class Diff:
             remote (str, optional): The remote to compare against. Defaults to "origin".
 
         Raises:
-            NotAncestor: When the remote HEAD is not an ancestor of the HEAD.
+            IsAncestor: When the HEAD is an ancestor of the target branch on the remote.
 
         Returns:
             Diff: The Diff object.
@@ -203,8 +225,9 @@ class Diff:
         remote_head = f"{remote}/{target_branch}"
         fetch_remote(self.repo, remote)
 
-        # To trigger InvalidTree if the remote_head is not found
-        check_head_ancestry(self.repo, remote_head)
+        head_is_ancestor = check_ancestry(self.repo, "HEAD", remote_head)
+        if head_is_ancestor:
+            raise IsAncestor
 
         self.diffs = self._merge_on_temp_branch(self.repo.active_branch.name, remote_head)
 
