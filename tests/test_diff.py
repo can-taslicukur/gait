@@ -1,4 +1,3 @@
-
 import pytest
 from git import Repo
 
@@ -76,6 +75,7 @@ def test_create_patch(git_history, snapshot):
         diff.create_patch()
 
     patch = diff.add().create_patch()
+    assert diff.patch == patch
     snapshot.assert_match(patch, "add_patch")
 
     diff_negative_unified = Diff(repo_path, unified=-11)
@@ -211,3 +211,14 @@ def test_pr(git_history, snapshot):
     repo.heads.feature.checkout()
     patch = diff.pr("master").create_patch()
     snapshot.assert_match(patch, "pr_conflict_patch")
+
+def test_review_patch(mock_openai, git_history):
+    openai_client = mock_openai["MockOpenAI"]("test-key")
+    diff = Diff(git_history["repo_path"])
+    with pytest.raises(Exception, match="No patch to review"):
+        diff.review_patch(openai_client, "gpt-3", 0.7, "system_prompt")
+
+    openai_client.chat.completions.create.return_value = "test completion"
+    diff.add().create_patch()
+    diff.review_patch(openai_client, "gpt-3", 0.7, "system prompt")
+    assert diff.review == "test completion"

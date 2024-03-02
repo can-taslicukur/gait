@@ -1,7 +1,9 @@
 import uuid
 from pathlib import Path
+from typing import List
 
-from git import GitCommandError, InvalidGitRepositoryError, Repo
+from git import GitCommandError, InvalidGitRepositoryError, Repo, diff
+from openai import OpenAI, Stream
 
 from .errors import (
     DirtyRepo,
@@ -105,7 +107,7 @@ class Diff:
         self.repo.create_head(tmp_branch, from_commit)
         return tmp_branch
 
-    def _merge_on_temp_branch(self, feature_commit: str, base_commit: str) -> None:
+    def _merge_on_temp_branch(self, feature_commit: str, base_commit: str) -> List[diff.Diff]:
         if self.repo.is_dirty():
             raise DirtyRepo
         # Save current branch to get back to it later
@@ -228,3 +230,21 @@ class Diff:
             raise NoCodeChanges
         self.patch = patch
         return patch
+
+    def review_patch(
+        self, openai_client: OpenAI, model: str, temperature: float, system_prompt: str
+    ) -> Stream:
+        if self.patch is None:
+            raise Exception("No patch to review.")
+
+        self.review = openai_client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": self.patch},
+            ],
+            temperature=temperature,
+            stream=True,
+        )
+
+        return self.review

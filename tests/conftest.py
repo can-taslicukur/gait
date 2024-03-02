@@ -56,6 +56,7 @@ def mock_openai():
         def __init__(self, api_key):
             self.api_key = api_key
             self.models = MagicMock()
+            self.chat = MagicMock()
 
             def models_retrieve_side_effect(model):
                 if self.api_key != "test-key":
