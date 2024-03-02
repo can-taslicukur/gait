@@ -257,6 +257,21 @@ class Diff:
     def review_patch(
         self, openai_client: OpenAI, model: str, temperature: float, system_prompt: str
     ) -> Stream:
+        """
+        Review the patch using OpenAI's chat completion models.
+
+        Args:
+            openai_client (OpenAI): The OpenAI client.
+            model (str): Model to use for the review.
+            temperature (float): Temperature parameter for the model.
+            system_prompt (str): System prompt to use for the review.
+
+        Raises:
+            Exception: When there is no patch to review.
+
+        Returns:
+            Stream: Chat completion stream.
+        """
         if self.patch is None:
             raise Exception("No patch to review.")
 
