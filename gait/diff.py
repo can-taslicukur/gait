@@ -194,9 +194,31 @@ class Diff:
         remote_head_is_ancestor = check_head_ancestry(self.repo, remote_head)
         if not remote_head_is_ancestor:
             raise NotAncestor
+        if self.repo.is_dirty():
+            raise DirtyRepo
+
+        active_branch = self.repo.active_branch.name
+        tmp_branch = self._create_tmp_branch(remote_head)
+        self.repo.heads[tmp_branch].checkout()
+        has_conflict = False
+        try:
+            self.repo.git.merge(active_branch, no_commit=True, no_ff=True)
+        except GitCommandError as command_error:
+            if "CONFLICT" in command_error.stdout:
+                has_conflict = True
+            else:
+                raise command_error
         self.diffs = self.repo.head.commit.diff(
-            remote_head, create_patch=True, no_ext_diff=True, R=True, unified=self.unified
+            None, create_patch=True, no_ext_diff=True, unified=self.unified
         )
+        if has_conflict:
+            self.repo.git.merge(abort=True)
+        else:
+            self.repo.git.reset(hard=True)
+
+        self.repo.heads[active_branch].checkout()
+        self.repo.delete_head(tmp_branch, force=True)
+
         return self
 
     def get_patch(self) -> str:

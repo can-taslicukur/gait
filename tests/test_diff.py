@@ -163,11 +163,11 @@ def test_pr(git_history):
     repo = Repo(repo_path)
     diff = Diff(repo_path)
     with pytest.raises(InvalidTree):
-        diff.pr("nonexistent_branch")
         # master has not been pushed to origin
         diff.pr("master")
     repo.remotes.origin.push("master", set_upstream=True)
-    assert len(diff.pr("master").diffs) == 0
+    with pytest.raises(DirtyRepo):
+        diff.pr("master")
 
     repo.git.add(".gitignore")
     repo.index.commit("added second and third line")
