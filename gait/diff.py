@@ -72,6 +72,7 @@ class Diff:
         except InvalidGitRepositoryError as no_git:
             raise NotARepo from no_git
         self.diffs = None
+        self.patch = None
         self.repo_path = repo_path
         self.unified = unified
 
@@ -116,14 +117,12 @@ class Diff:
         has_conflict = False
         try:
             self.repo.git.merge(feature_commit, no_commit=True, no_ff=True)
-        except GitCommandError as command_error:
-            if "CONFLICT" in command_error.stdout:
-                has_conflict = True
-            else:
-                raise command_error
-        diffs = self.repo.head.commit.diff(
-            None, create_patch=True, no_ext_diff=True, unified=self.unified
-        )
+        except GitCommandError:
+            has_conflict = True
+        finally:
+            diffs = self.repo.head.commit.diff(
+                None, create_patch=True, no_ext_diff=True, unified=self.unified
+            )
         if has_conflict:
             self.repo.git.merge(abort=True)
         else:
@@ -134,6 +133,7 @@ class Diff:
         # Clean up the temporary branch
         self.repo.delete_head(tmp_branch, force=True)
 
+        self.diffs = diffs
         return diffs
 
     def merge(self, tree: str) -> "Diff":
@@ -226,4 +226,5 @@ class Diff:
         patch = "\n".join([diff.diff.decode("utf-8") for diff in self.diffs])
         if patch.strip() == "":
             raise NoCodeChanges
+        self.patch = patch
         return patch
