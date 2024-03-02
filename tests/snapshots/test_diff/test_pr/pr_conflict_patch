@@ -1,0 +1,8 @@
+@@ -1,2 +1,7 @@
+ first_line
++<<<<<<< HEAD
+ adding a line in master
++=======
++second_line
++third_line
++>>>>>>> feature

@@ -1,4 +1,3 @@
-import re
 
 import pytest
 from git import Repo
@@ -13,10 +12,6 @@ from gait.errors import (
     NotAncestor,
     NotARepo,
 )
-
-added_lines_pattern = re.compile(r"(?<=^\+)\w+(?=\n)", re.M)
-removed_lines_pattern = re.compile(r"(?<=^-)\w+(?=\n)", re.M)
-conflict_ours_pattern = re.compile(r"(?<=^\+\<{7} HEAD\n\s).+(?=\n\+\={7}\n)", re.M)
 
 
 def test_fetch_remote(git_history):
@@ -127,21 +122,30 @@ def test_merge_on_temp_branch(git_history, snapshot):
     snapshot.assert_match(diff.get_patch(), "feature_conflict_merge_on_master_patch")
 
 
-def test_add(git_history):
+def test_add(git_history, snapshot):
     repo_path = git_history["repo_path"]
     diff = Diff(repo_path)
     patch = diff.add().get_patch()
-    assert removed_lines_pattern.search(patch) is None
-    assert added_lines_pattern.findall(patch) == ["third_line"]
+    snapshot.assert_match(patch, "add_patch")
 
-def test_commit(git_history):
+    diff.repo.git.add(git_history["gitignore"])
+    diff.add()
+    assert len(diff.diffs) == 0
+
+
+def test_commit(git_history, snapshot):
     repo_path = git_history["repo_path"]
     diff = Diff(repo_path)
     patch = diff.commit().get_patch()
-    assert removed_lines_pattern.search(patch) is None
-    assert added_lines_pattern.findall(patch) == ["second_line"]
+    snapshot.assert_match(patch, "commit_patch")
 
-def test_merge(git_history):
+    diff.repo.git.add(git_history["gitignore"])
+    diff.repo.index.commit("second commit")
+    diff.commit()
+    assert len(diff.diffs) == 0
+
+
+def test_merge(git_history, snapshot):
     repo_path = git_history["repo_path"]
     repo = Repo(repo_path)
     diff = Diff(repo_path)
@@ -151,8 +155,7 @@ def test_merge(git_history):
     repo.index.commit("second commit")
     repo.heads.master.checkout()
     patch = diff.merge("feature").get_patch()
-    assert removed_lines_pattern.search(patch) is None
-    assert added_lines_pattern.findall(patch) == ["second_line", "third_line"]
+    snapshot.assert_match(patch, "merge_patch")
 
     # create conflict
     with open(git_history["gitignore"], "a") as f:
@@ -160,17 +163,20 @@ def test_merge(git_history):
     repo.git.add(git_history["gitignore"])
     repo.index.commit("conflict")
     patch = diff.merge("feature").get_patch()
-    assert conflict_ours_pattern.findall(patch) == ["conflict"]
+    snapshot.assert_match(patch, "merge_conflict_patch")
 
 
-def test_push(git_history):
+def test_push(git_history, snapshot):
     repo_path = git_history["repo_path"]
     repo = Repo(repo_path)
     diff = Diff(repo_path)
+
+    diff.push()
+    assert len(diff.diffs) == 0
+
     repo.index.commit("added second line")
     patch = diff.push().get_patch()
-    assert removed_lines_pattern.search(patch) is None
-    assert added_lines_pattern.findall(patch) == ["second_line"]
+    snapshot.assert_match(patch, "push_patch")
 
     # Make remote ahead of local
     repo.git.push()
@@ -181,7 +187,7 @@ def test_push(git_history):
     with pytest.raises(NotAncestor):
         diff.push()
 
-def test_pr(git_history):
+def test_pr(git_history, snapshot):
     repo_path = git_history["repo_path"]
     repo = Repo(repo_path)
     diff = Diff(repo_path)
@@ -193,8 +199,7 @@ def test_pr(git_history):
     repo.git.add(git_history["gitignore"])
     repo.index.commit("added second and third line")
     patch = diff.pr("master").get_patch()
-    assert removed_lines_pattern.search(patch) is None
-    assert added_lines_pattern.findall(patch) == ["second_line", "third_line"]
+    snapshot.assert_match(patch, "pr_patch")
 
     # Make remote master ahead of local feature
     repo.heads.master.checkout()
@@ -205,4 +210,4 @@ def test_pr(git_history):
     repo.remotes.origin.push("master")
     repo.heads.feature.checkout()
     patch = diff.pr("master").get_patch()
-    assert conflict_ours_pattern.findall(patch) == ["adding a line in master"]
+    snapshot.assert_match(patch, "pr_conflict_patch")
