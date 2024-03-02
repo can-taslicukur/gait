@@ -33,7 +33,7 @@ def test_check_head_ancestry(git_history):
 
     # Make master ahead of feature
     repo.heads.master.checkout()
-    repo.git.add(".gitignore")
+    repo.git.add(git_history["gitignore"])
     repo.index.commit("second commit")
 
     repo.heads.feature.checkout()
@@ -57,7 +57,7 @@ def test_create_tmp_branch(git_history):
     assert tmp_branch.startswith("tmp-")
     assert tmp_branch in diff.repo.heads
     assert diff.repo.heads[tmp_branch].commit.hexsha == diff.repo.head.commit.hexsha
-    diff.repo.git.add(".gitignore")
+    diff.repo.git.add(git_history["gitignore"])
     diff.repo.index.commit("second commit")
     assert diff.repo.heads.master.commit.hexsha != diff.repo.heads.feature.commit.hexsha
 
@@ -85,7 +85,7 @@ def test_get_patch(git_history, snapshot):
     snapshot.assert_match(patch, "add_patch_diff_negative_unified")
 
     repo = Repo(repo_path)
-    repo.git.add(".gitignore")
+    repo.git.add(git_history["gitignore"])
     with pytest.raises(NoDiffs):
         diff.add().get_patch()
 
@@ -109,7 +109,7 @@ def test_merge(git_history):
     diff = Diff(repo_path)
     with pytest.raises(IsAncestor):
         diff.merge("master")
-    repo.git.add(".gitignore")
+    repo.git.add(git_history["gitignore"])
     repo.index.commit("second commit")
     repo.heads.master.checkout()
     sha_before_merge = repo.head.commit.hexsha
@@ -121,11 +121,11 @@ def test_merge(git_history):
     assert branches_before_merge == repo.heads
 
     # make repo dirty
-    with open(repo_path / ".gitignore", "a") as f:
+    with open(repo_path / git_history["gitignore"], "a") as f:
         f.write("conflict\n")
     with pytest.raises(DirtyRepo):
         diff.merge("feature")
-    repo.git.add(".gitignore")
+    repo.git.add(git_history["gitignore"])
     with pytest.raises(DirtyRepo):
         diff.merge("feature")
 
@@ -153,7 +153,7 @@ def test_push(git_history):
     repo.git.push()
     repo.git.reset("HEAD^")
     # Commit working tree
-    repo.git.add(".gitignore")
+    repo.git.add(git_history["gitignore"])
     repo.index.commit("added second and third line")
     with pytest.raises(NotAncestor):
         diff.push()
@@ -169,7 +169,7 @@ def test_pr(git_history):
     with pytest.raises(DirtyRepo):
         diff.pr("master")
 
-    repo.git.add(".gitignore")
+    repo.git.add(git_history["gitignore"])
     repo.index.commit("added second and third line")
     patch = diff.pr("master").get_patch()
     assert removed_lines_pattern.search(patch) is None
@@ -177,9 +177,9 @@ def test_pr(git_history):
 
     # Make remote master ahead of local feature
     repo.heads.master.checkout()
-    with open(repo_path / ".gitignore", "a") as f:
+    with open(repo_path / git_history["gitignore"], "a") as f:
         f.write("adding a line in master\n")
-    repo.git.add(".gitignore")
+    repo.git.add(git_history["gitignore"])
     repo.index.commit("adding a line in master")
     repo.remotes.origin.push("master")
     repo.heads.feature.checkout()

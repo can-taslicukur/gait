@@ -14,7 +14,7 @@ def git_history(tmp_path_factory):
     # First commit
     with open(gitignore, "w") as f:
         f.write("first_line\n")
-    repo.git.add(".gitignore")
+    repo.git.add(gitignore)
     repo.index.commit("first commit")
 
     # Create a feature branch and checkout
@@ -24,7 +24,7 @@ def git_history(tmp_path_factory):
     # Adding second line and staging
     with open(gitignore, "a") as f:
         f.write("second_line\n")
-    repo.git.add(".gitignore")
+    repo.git.add(gitignore)
 
     # Adding third line
     with open(gitignore, "a") as f:
@@ -38,6 +38,7 @@ def git_history(tmp_path_factory):
 
     return {
         "repo_path": repo_path,
+        "gitignore": gitignore,
         "remote_repo_path": remote_repo_path,
         "no_repo_path": no_repo_path,
     }
