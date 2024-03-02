@@ -48,6 +48,9 @@ def test_init(git_history):
     diff = Diff(repo_path)
     assert diff.repo == repo
     assert diff.unified == 3
+    assert diff.diffs is None
+    assert diff.patch is None
+
 
 def test_create_tmp_branch(git_history):
     repo_path = git_history["repo_path"]
@@ -89,6 +92,41 @@ def test_get_patch(git_history, snapshot):
     with pytest.raises(NoDiffs):
         diff.add().get_patch()
 
+
+def test_merge_on_temp_branch(git_history, snapshot):
+    repo_path = git_history["repo_path"]
+    diff = Diff(repo_path)
+    with pytest.raises(DirtyRepo):
+        diff._merge_on_temp_branch("feature", "master")
+
+    # Commit all changes
+    repo = Repo(repo_path)
+    repo.git.add(git_history["gitignore"])
+    repo.index.commit("second commit")
+
+    # Checkout to master
+    repo.heads.master.checkout()
+
+    sha_before_merge = repo.head.commit.hexsha
+    branches_before_merge = repo.heads
+    diffs = diff._merge_on_temp_branch("feature", "master")
+    assert isinstance(diffs, list)
+    assert len(diffs) == 1
+    snapshot.assert_match(diff.get_patch(), "feature_merge_on_master_patch")
+    assert sha_before_merge == repo.head.commit.hexsha
+    assert branches_before_merge == repo.heads
+
+    # make master ahead of feature
+    with open(git_history["gitignore"], "a") as f:
+        f.write("conflict\n")
+    repo.git.add(git_history["gitignore"])
+    repo.index.commit("I want to see the world burn!")
+    diffs = diff._merge_on_temp_branch("feature", "master")
+    assert isinstance(diffs, list)
+    assert len(diffs) == 1
+    snapshot.assert_match(diff.get_patch(), "feature_conflict_merge_on_master_patch")
+
+
 def test_add(git_history):
     repo_path = git_history["repo_path"]
     diff = Diff(repo_path)
@@ -112,32 +150,17 @@ def test_merge(git_history):
     repo.git.add(git_history["gitignore"])
     repo.index.commit("second commit")
     repo.heads.master.checkout()
-    sha_before_merge = repo.head.commit.hexsha
-    branches_before_merge = repo.heads
     patch = diff.merge("feature").get_patch()
     assert removed_lines_pattern.search(patch) is None
     assert added_lines_pattern.findall(patch) == ["second_line", "third_line"]
-    assert sha_before_merge == repo.head.commit.hexsha
-    assert branches_before_merge == repo.heads
-
-    # make repo dirty
-    with open(git_history["gitignore"], "a") as f:
-        f.write("conflict\n")
-    with pytest.raises(DirtyRepo):
-        diff.merge("feature")
-    repo.git.add(git_history["gitignore"])
-    with pytest.raises(DirtyRepo):
-        diff.merge("feature")
 
     # create conflict
+    with open(git_history["gitignore"], "a") as f:
+        f.write("conflict\n")
+    repo.git.add(git_history["gitignore"])
     repo.index.commit("conflict")
-    sha_before_merge = repo.head.commit.hexsha
-    branches_before_merge = repo.heads
     patch = diff.merge("feature").get_patch()
-    print(patch)
     assert conflict_ours_pattern.findall(patch) == ["conflict"]
-    assert sha_before_merge == repo.head.commit.hexsha
-    assert branches_before_merge == repo.heads
 
 
 def test_push(git_history):
@@ -166,8 +189,6 @@ def test_pr(git_history):
         # master has not been pushed to origin
         diff.pr("master")
     repo.remotes.origin.push("master", set_upstream=True)
-    with pytest.raises(DirtyRepo):
-        diff.pr("master")
 
     repo.git.add(git_history["gitignore"])
     repo.index.commit("added second and third line")

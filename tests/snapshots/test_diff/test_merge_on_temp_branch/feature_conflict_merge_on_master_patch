@@ -1,0 +1,8 @@
+@@ -1,2 +1,7 @@
+ first_line
++<<<<<<< HEAD
+ conflict
++=======
++second_line
++third_line
++>>>>>>> feature
