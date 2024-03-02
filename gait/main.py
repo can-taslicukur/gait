@@ -7,6 +7,7 @@ from typing_extensions import Annotated
 
 from .diff import Diff
 from .errors import InvalidRemote, InvalidTree, IsAncestor, NoDiffs, NotAncestor, NotARepo
+from .utils import stream_to_console
 
 
 # TODO: Move system_prompt to a file and make it configurable
@@ -28,24 +29,6 @@ Conclude your review by deciding whether you request changes or approve."""  # n
         temperature=temperature,
         stream=True,
     )
-
-
-# TODO: Open a pager at the end of the stream and display the review as markdown
-def stream_to_console(review: Stream) -> None:
-    """
-    Stream the review to the console and open a pager at the end of the stream
-
-    Args:
-        review (Stream): _description_
-    """
-    full_review = ""
-    for chunk in review:
-        chunk_content = chunk.choices[0].delta.content
-        if chunk_content is None:
-            break
-        full_review += chunk_content
-        print(chunk_content, end="", flush=True)
-
 
 app = typer.Typer()
 
