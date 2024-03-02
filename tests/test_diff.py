@@ -121,7 +121,7 @@ def test_merge(git_history):
     assert branches_before_merge == repo.heads
 
     # make repo dirty
-    with open(repo_path / git_history["gitignore"], "a") as f:
+    with open(git_history["gitignore"], "a") as f:
         f.write("conflict\n")
     with pytest.raises(DirtyRepo):
         diff.merge("feature")
@@ -177,7 +177,7 @@ def test_pr(git_history):
 
     # Make remote master ahead of local feature
     repo.heads.master.checkout()
-    with open(repo_path / git_history["gitignore"], "a") as f:
+    with open(git_history["gitignore"], "a") as f:
         f.write("adding a line in master\n")
     repo.git.add(git_history["gitignore"])
     repo.index.commit("adding a line in master")

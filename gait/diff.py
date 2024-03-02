@@ -104,6 +104,38 @@ class Diff:
         self.repo.create_head(tmp_branch, from_commit)
         return tmp_branch
 
+    def _merge_on_temp_branch(self, feature_commit: str, base_commit: str) -> None:
+        if self.repo.is_dirty():
+            raise DirtyRepo
+        # Save current branch to get back to it later
+        active_branch = self.repo.active_branch.name
+
+        tmp_branch = self._create_tmp_branch(base_commit)
+        self.repo.heads[tmp_branch].checkout()
+
+        has_conflict = False
+        try:
+            self.repo.git.merge(feature_commit, no_commit=True, no_ff=True)
+        except GitCommandError as command_error:
+            if "CONFLICT" in command_error.stdout:
+                has_conflict = True
+            else:
+                raise command_error
+        diffs = self.repo.head.commit.diff(
+            None, create_patch=True, no_ext_diff=True, unified=self.unified
+        )
+        if has_conflict:
+            self.repo.git.merge(abort=True)
+        else:
+            self.repo.git.reset(hard=True)
+
+        # Go back to original branch
+        self.repo.heads[active_branch].checkout()
+        # Clean up the temporary branch
+        self.repo.delete_head(tmp_branch, force=True)
+
+        return diffs
+
     def merge(self, tree: str) -> "Diff":
         """
         Diff between the HEAD and the tree.
@@ -123,31 +155,8 @@ class Diff:
         if tree_is_ancestor:
             raise IsAncestor
 
-        if self.repo.is_dirty():
-            raise DirtyRepo
+        self.diffs = self._merge_on_temp_branch(tree, self.repo.active_branch.name)
 
-        active_branch = self.repo.active_branch.name
-        tmp_branch = self._create_tmp_branch()
-        self.repo.heads[tmp_branch].checkout()
-
-        has_conflict = False
-        try:
-            self.repo.git.merge(tree, no_commit=True, no_ff=True)
-        except GitCommandError as command_error:
-            if "CONFLICT" in command_error.stdout:
-                has_conflict = True
-            else:
-                raise command_error
-        self.diffs = self.repo.head.commit.diff(
-            None, create_patch=True, no_ext_diff=True, unified=self.unified
-        )
-        if has_conflict:
-            self.repo.git.merge(abort=True)
-        else:
-            self.repo.git.reset(hard=True)
-
-        self.repo.heads[active_branch].checkout()
-        self.repo.delete_head(tmp_branch, force=True)
         return self
 
     def push(self, remote: str = "origin") -> "Diff":
@@ -195,30 +204,7 @@ class Diff:
         # To trigger InvalidTree if the remote_head is not found
         check_head_ancestry(self.repo, remote_head)
 
-        if self.repo.is_dirty():
-            raise DirtyRepo
-
-        active_branch = self.repo.active_branch.name
-        tmp_branch = self._create_tmp_branch(remote_head)
-        self.repo.heads[tmp_branch].checkout()
-        has_conflict = False
-        try:
-            self.repo.git.merge(active_branch, no_commit=True, no_ff=True)
-        except GitCommandError as command_error:
-            if "CONFLICT" in command_error.stdout:
-                has_conflict = True
-            else:
-                raise command_error
-        self.diffs = self.repo.head.commit.diff(
-            None, create_patch=True, no_ext_diff=True, unified=self.unified
-        )
-        if has_conflict:
-            self.repo.git.merge(abort=True)
-        else:
-            self.repo.git.reset(hard=True)
-
-        self.repo.heads[active_branch].checkout()
-        self.repo.delete_head(tmp_branch, force=True)
+        self.diffs = self._merge_on_temp_branch(self.repo.active_branch.name, remote_head)
 
         return self
 
