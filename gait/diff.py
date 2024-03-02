@@ -208,7 +208,7 @@ class Diff:
 
         return self
 
-    def get_patch(self) -> str:
+    def create_patch(self) -> str:
         """
         Get the patch from the diffs.
 

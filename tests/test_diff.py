@@ -69,23 +69,23 @@ def test_create_tmp_branch(git_history):
     )
 
 
-def test_get_patch(git_history, snapshot):
+def test_create_patch(git_history, snapshot):
     repo_path = git_history["repo_path"]
     diff = Diff(repo_path)
     with pytest.raises(Exception, match="No diffs generated"):
-        diff.get_patch()
+        diff.create_patch()
 
-    patch = diff.add().get_patch()
+    patch = diff.add().create_patch()
     snapshot.assert_match(patch, "add_patch")
 
     diff_negative_unified = Diff(repo_path, unified=-11)
-    patch = diff_negative_unified.add().get_patch()
+    patch = diff_negative_unified.add().create_patch()
     snapshot.assert_match(patch, "add_patch_diff_negative_unified")
 
     repo = Repo(repo_path)
     repo.git.add(git_history["gitignore"])
     with pytest.raises(NoDiffs):
-        diff.add().get_patch()
+        diff.add().create_patch()
 
 
 def test_merge_on_temp_branch(git_history, snapshot):
@@ -107,7 +107,7 @@ def test_merge_on_temp_branch(git_history, snapshot):
     diffs = diff._merge_on_temp_branch("feature", "master")
     assert isinstance(diffs, list)
     assert len(diffs) == 1
-    snapshot.assert_match(diff.get_patch(), "feature_merge_on_master_patch")
+    snapshot.assert_match(diff.create_patch(), "feature_merge_on_master_patch")
     assert sha_before_merge == repo.head.commit.hexsha
     assert branches_before_merge == repo.heads
 
@@ -119,13 +119,13 @@ def test_merge_on_temp_branch(git_history, snapshot):
     diffs = diff._merge_on_temp_branch("feature", "master")
     assert isinstance(diffs, list)
     assert len(diffs) == 1
-    snapshot.assert_match(diff.get_patch(), "feature_conflict_merge_on_master_patch")
+    snapshot.assert_match(diff.create_patch(), "feature_conflict_merge_on_master_patch")
 
 
 def test_add(git_history, snapshot):
     repo_path = git_history["repo_path"]
     diff = Diff(repo_path)
-    patch = diff.add().get_patch()
+    patch = diff.add().create_patch()
     snapshot.assert_match(patch, "add_patch")
 
     diff.repo.git.add(git_history["gitignore"])
@@ -136,7 +136,7 @@ def test_add(git_history, snapshot):
 def test_commit(git_history, snapshot):
     repo_path = git_history["repo_path"]
     diff = Diff(repo_path)
-    patch = diff.commit().get_patch()
+    patch = diff.commit().create_patch()
     snapshot.assert_match(patch, "commit_patch")
 
     diff.repo.git.add(git_history["gitignore"])
@@ -154,7 +154,7 @@ def test_merge(git_history, snapshot):
     repo.git.add(git_history["gitignore"])
     repo.index.commit("second commit")
     repo.heads.master.checkout()
-    patch = diff.merge("feature").get_patch()
+    patch = diff.merge("feature").create_patch()
     snapshot.assert_match(patch, "merge_patch")
 
     # create conflict
@@ -162,7 +162,7 @@ def test_merge(git_history, snapshot):
         f.write("conflict\n")
     repo.git.add(git_history["gitignore"])
     repo.index.commit("conflict")
-    patch = diff.merge("feature").get_patch()
+    patch = diff.merge("feature").create_patch()
     snapshot.assert_match(patch, "merge_conflict_patch")
 
 
@@ -175,7 +175,7 @@ def test_push(git_history, snapshot):
     assert len(diff.diffs) == 0
 
     repo.index.commit("added second line")
-    patch = diff.push().get_patch()
+    patch = diff.push().create_patch()
     snapshot.assert_match(patch, "push_patch")
 
     # Make remote ahead of local
@@ -198,7 +198,7 @@ def test_pr(git_history, snapshot):
 
     repo.git.add(git_history["gitignore"])
     repo.index.commit("added second and third line")
-    patch = diff.pr("master").get_patch()
+    patch = diff.pr("master").create_patch()
     snapshot.assert_match(patch, "pr_patch")
 
     # Make remote master ahead of local feature
@@ -209,5 +209,5 @@ def test_pr(git_history, snapshot):
     repo.index.commit("adding a line in master")
     repo.remotes.origin.push("master")
     repo.heads.feature.checkout()
-    patch = diff.pr("master").get_patch()
+    patch = diff.pr("master").create_patch()
     snapshot.assert_match(patch, "pr_conflict_patch")

@@ -114,7 +114,7 @@ def main(
 @app.command()
 def add(ctx: typer.Context):
     try:
-        patch = ctx.obj.diff.add().get_patch()
+        patch = ctx.obj.diff.add().create_patch()
     except NoDiffs as no_diffs:
         print("No diffs to review")
         raise typer.Abort() from no_diffs
@@ -125,7 +125,7 @@ def add(ctx: typer.Context):
 @app.command()
 def commit(ctx: typer.Context):
     try:
-        patch = ctx.obj.diff.commit().get_patch()
+        patch = ctx.obj.diff.commit().create_patch()
     except NoDiffs as no_diffs:
         print("No diffs to review")
         raise typer.Abort() from no_diffs
@@ -138,7 +138,7 @@ def merge(
     ctx: typer.Context, tree: Annotated[str, typer.Argument(help="tree to merge into the HEAD")]
 ):
     try:
-        patch = ctx.obj.diff.merge(tree).get_patch()
+        patch = ctx.obj.diff.merge(tree).create_patch()
     except InvalidTree as invalid_tree:
         print(f"{tree} is not a valid tree")
         raise typer.Abort() from invalid_tree
@@ -157,7 +157,7 @@ def push(
     ctx: typer.Context, remote: Annotated[str, typer.Argument(help="remote to push to")] = "origin"
 ):
     try:
-        patch = ctx.obj.diff.push(remote).get_patch()
+        patch = ctx.obj.diff.push(remote).create_patch()
     except InvalidRemote as invalid_remote:
         print(f"{remote} is not a valid remote")
         raise typer.Abort() from invalid_remote
@@ -182,7 +182,7 @@ def pr(
 ):
     remote_target_ref = f"{remote}/{target_branch}"
     try:
-        patch = ctx.obj.diff.pr(target_branch, remote).get_patch()
+        patch = ctx.obj.diff.pr(target_branch, remote).create_patch()
     except InvalidRemote as invalid_remote:
         print(f"{remote} is not a valid remote")
         raise typer.Abort() from invalid_remote
