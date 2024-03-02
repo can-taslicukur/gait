@@ -191,9 +191,10 @@ class Diff:
         """
         remote_head = f"{remote}/{target_branch}"
         fetch_remote(self.repo, remote)
-        remote_head_is_ancestor = check_head_ancestry(self.repo, remote_head)
-        if not remote_head_is_ancestor:
-            raise NotAncestor
+
+        # To trigger InvalidTree if the remote_head is not found
+        check_head_ancestry(self.repo, remote_head)
+
         if self.repo.is_dirty():
             raise DirtyRepo
 

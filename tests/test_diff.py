@@ -177,11 +177,11 @@ def test_pr(git_history):
 
     # Make remote master ahead of local feature
     repo.heads.master.checkout()
-    with open(repo_path / "gitignore", "a") as f:
+    with open(repo_path / ".gitignore", "a") as f:
         f.write("adding a line in master\n")
     repo.git.add(".gitignore")
     repo.index.commit("adding a line in master")
     repo.remotes.origin.push("master")
     repo.heads.feature.checkout()
-    with pytest.raises(NotAncestor):
-        diff.pr("master")
+    patch = diff.pr("master").get_patch()
+    assert conflict_ours_pattern.findall(patch) == ["adding a line in master"]
