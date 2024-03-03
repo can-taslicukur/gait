@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gait"
-version = "0.1.0"
+version = "0.1.1"
 description = "Review your code changes in a git repository using an LLM"
 authors = ["Can Taşlıçukur <can.taslicukur@ozu.edu.tr>"]
 readme = "README.md"
