@@ -91,6 +91,9 @@ def main(
 
 @app.command()
 def add(ctx: typer.Context):
+    """
+    Review the changes between the working tree and the index
+    """
     ctx.obj.diff.add()
     handle_create_patch_errors(ctx.obj.diff)
     review = ctx.obj.diff.review_patch(
@@ -101,6 +104,9 @@ def add(ctx: typer.Context):
 
 @app.command()
 def commit(ctx: typer.Context):
+    """
+    Review the changes between index and the HEAD
+    """
     ctx.obj.diff.commit()
     handle_create_patch_errors(ctx.obj.diff)
     review = ctx.obj.diff.review_patch(
@@ -113,6 +119,9 @@ def commit(ctx: typer.Context):
 def merge(
     ctx: typer.Context, tree: Annotated[str, typer.Argument(help="tree to merge into the HEAD")]
 ):
+    """
+    Review the result of a merge between the HEAD and the tree
+    """
     try:
         ctx.obj.diff.merge(tree)
     except InvalidTree as invalid_tree:
@@ -136,6 +145,9 @@ def merge(
 def push(
     ctx: typer.Context, remote: Annotated[str, typer.Argument(help="remote to push to")] = "origin"
 ):
+    """
+    Review the changes between the HEAD and the remote
+    """
     remote_head = f"{remote}/{ctx.obj.diff.repo.active_branch.name}"
     try:
         ctx.obj.diff.push(remote)
@@ -164,6 +176,9 @@ def pr(
     target_branch: Annotated[str, typer.Argument(help="target branch to compare")],
     remote: Annotated[str, typer.Argument(help="remote of the target branch")] = "origin",
 ):
+    """
+    Review the result of a pull request to the target branch in the remote
+    """
     remote_target_ref = f"{remote}/{target_branch}"
     try:
         ctx.obj.diff.pr(target_branch, remote)
