@@ -68,7 +68,7 @@ def main(
     try:
         diff = Diff(Path("."), unified=unified)
     except NotARepo as not_a_repo:
-        print("Not a git repository")
+        print("Current directory is not a git repository")
         raise typer.Abort() from not_a_repo
 
     if not model.startswith("gpt"):

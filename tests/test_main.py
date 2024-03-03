@@ -35,4 +35,4 @@ def test_main(mock_openai, monkeypatch, git_history):
     monkeypatch.chdir(git_history["no_repo_path"])
     not_a_repo_result = runner.invoke(app)
     assert not_a_repo_result.exit_code != 0
-    assert "Not a git repository" in not_a_repo_result.stdout
+    assert "Current directory is not a git repository" in not_a_repo_result.stdout
