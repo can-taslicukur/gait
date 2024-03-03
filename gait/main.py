@@ -2,36 +2,21 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import typer
-from openai import AuthenticationError, NotFoundError, OpenAI, Stream
+from openai import AuthenticationError, NotFoundError, OpenAI
 from typing_extensions import Annotated
 
 from .diff import Diff
-from .errors import InvalidRemote, InvalidTree, IsAncestor, NoDiffs, NotAncestor, NotARepo
-from .utils import stream_to_console
-
-
-# TODO: Move system_prompt to a file and make it configurable
-def review_patch(openai_client: OpenAI, patch: str, model: str, temperature: float) -> Stream:
-    system_prompt = """Act as a senior developer who reviews code changes to the codebase. As a senior developer, your task is to provide constructive feedback and guidance on the quality of changes based on the given diff patch.
-
-Review the individual files and modules. Ignore the changes to automatically generated files in the diff such as .lock, manifest.json, .min.css, snaps, etc.
-
-Assess the clarity of variable and function names and consistent coding style. Evaluate the code's structure, ensuring it follows modular design principles and separates concerns appropriately. Next, analyze the code's efficiency and performance. Look for any potential bottlenecks, unnecessary computations, or inefficient algorithms. Suggest optimizations or alternative approaches that can enhance the code's speed and resource usage. Take into account factors such as the potential impact on the overall system, the likelihood of introducing new bugs or security vulnerabilities, code readability, maintainability, test coverage, efficiency, adherence to best practices, security, and overall design patterns. Your review should focus on identifying potential issues and suggesting improvements. If the PR lacks robust tests, provide suggestions for additional tests.
-
-If any issues are spotted, highlight them, explain the problem, and provide code suggestions. When you suggest new code, keep it simple and adhere to the principles mentioned above. Do not suggest commenting on the code, except adding docstring.
-
-Remember to approach the code review process with a constructive and helpful mindset, aiming to assist the developer in creating a higher-quality codebase.
-
-Conclude your review by deciding whether you request changes or approve."""  # noqa: E501
-    return openai_client.chat.completions.create(
-        model=model,
-        messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": patch}],
-        temperature=temperature,
-        stream=True,
-    )
+from .errors import (
+    DirtyRepo,
+    InvalidRemote,
+    InvalidTree,
+    IsAncestor,
+    NotAncestor,
+    NotARepo,
+)
+from .utils import handle_create_patch_errors, read_prompt, stream_to_console
 
 app = typer.Typer()
-
 
 @app.callback(invoke_without_command=True)
 def main(
@@ -51,6 +36,13 @@ def main(
             min=0, max=2, help="Temperature for the model", rich_help_panel="OpenAI Parameters"
         ),
     ] = 1,
+    system_prompt: Annotated[
+        str,
+        typer.Option(
+            help="Custom system prompt to use for the diff patches",
+            rich_help_panel="OpenAI Parameters",
+        ),
+    ] = None,
     unified: Annotated[
         int,
         typer.Option(
@@ -59,6 +51,8 @@ def main(
         ),
     ] = 3,
 ):
+    if ctx.invoked_subcommand is None:
+        ctx.get_help()
     try:
         diff = Diff(Path("."), unified=unified)
     except NotARepo as not_a_repo:
@@ -82,37 +76,36 @@ def main(
             f"{model} does not exist", ctx=ctx, param=model, param_hint="model"
         ) from no_model
 
+    if system_prompt is None:
+        system_prompt = read_prompt("default")
+
     ctx.obj = SimpleNamespace(
         diff=diff,
         client=client,
         openai_api_key=openai_api_key,
         model=model,
         temperature=temperature,
+        system_prompt=system_prompt,
         unified=unified,
     )
 
-    if ctx.invoked_subcommand is None:
-        ctx.get_help()
-
 @app.command()
 def add(ctx: typer.Context):
-    try:
-        patch = ctx.obj.diff.add().create_patch()
-    except NoDiffs as no_diffs:
-        print("No diffs to review")
-        raise typer.Abort() from no_diffs
-    review = review_patch(ctx.obj.client, patch, ctx.obj.model, ctx.obj.temperature)
+    ctx.obj.diff.add()
+    handle_create_patch_errors(ctx.obj.diff)
+    review = ctx.obj.diff.review_patch(
+        ctx.obj.client, ctx.obj.model, ctx.obj.temperature, ctx.obj.system_prompt
+    )
     stream_to_console(review)
 
 
 @app.command()
 def commit(ctx: typer.Context):
-    try:
-        patch = ctx.obj.diff.commit().create_patch()
-    except NoDiffs as no_diffs:
-        print("No diffs to review")
-        raise typer.Abort() from no_diffs
-    review = review_patch(ctx.obj.client, patch, ctx.obj.model, ctx.obj.temperature)
+    ctx.obj.diff.commit()
+    handle_create_patch_errors(ctx.obj.diff)
+    review = ctx.obj.diff.review_patch(
+        ctx.obj.client, ctx.obj.model, ctx.obj.temperature, ctx.obj.system_prompt
+    )
     stream_to_console(review)
 
 
@@ -121,41 +114,49 @@ def merge(
     ctx: typer.Context, tree: Annotated[str, typer.Argument(help="tree to merge into the HEAD")]
 ):
     try:
-        patch = ctx.obj.diff.merge(tree).create_patch()
+        ctx.obj.diff.merge(tree)
     except InvalidTree as invalid_tree:
-        print(f"{tree} is not a valid tree")
+        print(f"{tree} is not a valid tree to merge into the HEAD")
         raise typer.Abort() from invalid_tree
     except IsAncestor as ancestor_tree:
-        print(f"{tree} is an ancestor of the HEAD")
+        print(f"{tree} is an ancestor of the HEAD, no code changes to review")
         raise typer.Abort() from ancestor_tree
-    except NoDiffs as no_diffs:
-        print("No diffs to review")
-        raise typer.Abort() from no_diffs
-    review = review_patch(ctx.obj.client, patch, ctx.obj.model, ctx.obj.temperature)
+    except DirtyRepo as dirty_repo:
+        print(
+            "Working tree has uncommitted changes, please commit or stash them to review the merge"
+        )
+        raise typer.Abort() from dirty_repo
+    handle_create_patch_errors(ctx.obj.diff)
+    review = ctx.obj.diff.review_patch(
+        ctx.obj.client, ctx.obj.model, ctx.obj.temperature, ctx.obj.system_prompt
+    )
     stream_to_console(review)
-
 
 @app.command()
 def push(
     ctx: typer.Context, remote: Annotated[str, typer.Argument(help="remote to push to")] = "origin"
 ):
+    remote_head = f"{remote}/{ctx.obj.diff.repo.active_branch.name}"
     try:
-        patch = ctx.obj.diff.push(remote).create_patch()
+        ctx.obj.diff.push(remote)
     except InvalidRemote as invalid_remote:
         print(f"{remote} is not a valid remote")
-        raise typer.Abort() from invalid_remote
-    except InvalidTree as invalid_tree:
-        print(f"{remote} is not a valid tree")
-        raise typer.Abort() from invalid_tree
+        raise typer.BadParameter(
+            f"{remote} is not a valid remote", ctx=ctx, param=remote, param_hint="remote"
+        ) from invalid_remote
+    except InvalidTree as no_upstream:
+        print(f"Active branch has no upstream {remote_head}, please set it to review the push")
+        raise typer.Abort() from no_upstream
     except NotAncestor as not_ancestor:
-        print(f"{remote} is not an ancestor of the HEAD")
+        print(
+            "Remote is ahead of the local branch, please pull the changes before reviewing the push"
+        )
         raise typer.Abort() from not_ancestor
-    except NoDiffs as no_diffs:
-        print("No diffs to review")
-        raise typer.Abort() from no_diffs
-    review = review_patch(ctx.obj.client, patch, ctx.obj.model, ctx.obj.temperature)
+    handle_create_patch_errors(ctx.obj.diff)
+    review = ctx.obj.diff.review_patch(
+        ctx.obj.client, ctx.obj.model, ctx.obj.temperature, ctx.obj.system_prompt
+    )
     stream_to_console(review)
-
 
 @app.command()
 def pr(
@@ -165,20 +166,29 @@ def pr(
 ):
     remote_target_ref = f"{remote}/{target_branch}"
     try:
-        patch = ctx.obj.diff.pr(target_branch, remote).create_patch()
+        ctx.obj.diff.pr(target_branch, remote)
     except InvalidRemote as invalid_remote:
-        print(f"{remote} is not a valid remote")
-        raise typer.Abort() from invalid_remote
+        raise typer.BadParameter(
+            f"{remote} is not a valid remote", ctx=ctx, param=remote, param_hint="remote"
+        ) from invalid_remote
     except InvalidTree as invalid_tree:
-        print(f"{remote_target_ref} is not a valid tree")
-        raise typer.Abort() from invalid_tree
-    except NotAncestor as not_ancestor:
-        print(f"{remote_target_ref} is not an ancestor of the HEAD")
-        raise typer.Abort() from not_ancestor
-    except NoDiffs as no_diffs:
-        print("No diffs to review")
-        raise typer.Abort() from no_diffs
-    review = review_patch(ctx.obj.client, patch, ctx.obj.model, ctx.obj.temperature)
+        raise typer.BadParameter(
+            f"{remote_target_ref} is not a valid tree",
+            ctx=ctx,
+            param_hint="remote/target_branch",
+        ) from invalid_tree
+    except IsAncestor as ancestor_tree:
+        print(f"HEAD is an ancestor of {remote_target_ref}, no code changes to review")
+        raise typer.Abort() from ancestor_tree
+    except DirtyRepo as dirty_repo:
+        print(
+            "Working tree has uncommitted changes, please commit or stash them to review the pull request"  # noqa: E501
+        )
+        raise typer.Abort() from dirty_repo
+    handle_create_patch_errors(ctx.obj.diff)
+    review = ctx.obj.diff.review_patch(
+        ctx.obj.client, ctx.obj.model, ctx.obj.temperature, ctx.obj.system_prompt
+    )
     stream_to_console(review)
 
 

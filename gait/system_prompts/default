@@ -10,6 +10,8 @@ Remember to approach the code review process with a constructive and helpful min
 
 Conclude your review by deciding whether you request changes or approve the changes.
 
-Do not request changes on context lines in the diff patch.
+Make no comments on the context lines below and above the changed lines, use them as context for the review.
 
 Do not introduce yourself, jump straight to the review.
+
+Do not mention that you are reviewing a diff patch.
