@@ -1,6 +1,10 @@
 import pkgutil
 
+import typer
 from openai import Stream
+
+from .diff import Diff
+from .errors import NoCodeChanges, NoDiffs
 
 
 def stream_to_console(stream: Stream) -> str:
@@ -34,3 +38,20 @@ def read_prompt(prompt: str) -> str:
         str: Contents of the file
     """
     return pkgutil.get_data(__name__, f"system_prompts/{prompt}").decode("utf-8")
+
+
+def handle_create_patch_errors(diff_object: Diff) -> None:
+    """
+    Handles errors raised when creating a patch
+
+    Args:
+        diff_object (Diff): The Diff object
+    """
+    try:
+        diff_object.create_patch()
+    except NoDiffs as no_diffs:
+        print("No differences found to review")
+        raise typer.Abort() from no_diffs
+    except NoCodeChanges as no_code_changes:
+        print("No meaningful code changes found to review")
+        raise typer.Abort() from no_code_changes
