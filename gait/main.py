@@ -44,7 +44,7 @@ def main(
     ],
     model: Annotated[
         str, typer.Option(help="OpenAI GPT model", rich_help_panel="OpenAI Parameters")
-    ] = "gpt-3.5-turbo",
+    ] = "gpt-4-turbo-preview",
     temperature: Annotated[
         int,
         typer.Option(

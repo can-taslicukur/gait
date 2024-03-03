@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-from gait.utils import stream_to_console
+from gait.utils import read_prompt, stream_to_console
 
 
 def test_stream_to_console(capsys):
@@ -14,3 +14,8 @@ def test_stream_to_console(capsys):
     out, err = capsys.readouterr()
     assert out == "mock content"
     assert full_stream == "mock content"
+
+def test_read_prompt():
+    prompt = read_prompt("default")
+    assert isinstance(prompt, str)
+    assert len(prompt) > 0
