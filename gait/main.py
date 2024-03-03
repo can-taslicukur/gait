@@ -16,6 +16,18 @@ from .errors import (
 )
 from .utils import handle_create_patch_errors, read_prompt, stream_to_console
 
+
+def print_patch_review(ctx: typer.Context):
+    try:
+        review = ctx.obj.diff.review_patch(
+            ctx.obj.client, ctx.obj.model, ctx.obj.temperature, ctx.obj.system_prompt
+        )
+    except Exception as err:
+        print("Error while reviewing the code changes.")
+        raise typer.Abort() from err
+    stream_to_console(review)
+
+
 app = typer.Typer()
 
 @app.callback(invoke_without_command=True)
@@ -96,10 +108,7 @@ def add(ctx: typer.Context):
     """
     ctx.obj.diff.add()
     handle_create_patch_errors(ctx.obj.diff)
-    review = ctx.obj.diff.review_patch(
-        ctx.obj.client, ctx.obj.model, ctx.obj.temperature, ctx.obj.system_prompt
-    )
-    stream_to_console(review)
+    print_patch_review(ctx)
 
 
 @app.command()
@@ -109,10 +118,7 @@ def commit(ctx: typer.Context):
     """
     ctx.obj.diff.commit()
     handle_create_patch_errors(ctx.obj.diff)
-    review = ctx.obj.diff.review_patch(
-        ctx.obj.client, ctx.obj.model, ctx.obj.temperature, ctx.obj.system_prompt
-    )
-    stream_to_console(review)
+    print_patch_review(ctx)
 
 
 @app.command()
@@ -136,10 +142,8 @@ def merge(
         )
         raise typer.Abort() from dirty_repo
     handle_create_patch_errors(ctx.obj.diff)
-    review = ctx.obj.diff.review_patch(
-        ctx.obj.client, ctx.obj.model, ctx.obj.temperature, ctx.obj.system_prompt
-    )
-    stream_to_console(review)
+    print_patch_review(ctx)
+
 
 @app.command()
 def push(
@@ -165,10 +169,8 @@ def push(
         )
         raise typer.Abort() from not_ancestor
     handle_create_patch_errors(ctx.obj.diff)
-    review = ctx.obj.diff.review_patch(
-        ctx.obj.client, ctx.obj.model, ctx.obj.temperature, ctx.obj.system_prompt
-    )
-    stream_to_console(review)
+    print_patch_review(ctx)
+
 
 @app.command()
 def pr(
@@ -201,10 +203,7 @@ def pr(
         )
         raise typer.Abort() from dirty_repo
     handle_create_patch_errors(ctx.obj.diff)
-    review = ctx.obj.diff.review_patch(
-        ctx.obj.client, ctx.obj.model, ctx.obj.temperature, ctx.obj.system_prompt
-    )
-    stream_to_console(review)
+    print_patch_review(ctx)
 
 
 if __name__ == "__main__":
