@@ -123,18 +123,19 @@ def commit(ctx: typer.Context):
 
 @app.command()
 def merge(
-    ctx: typer.Context, tree: Annotated[str, typer.Argument(help="tree to merge into the HEAD")]
+    ctx: typer.Context,
+    feature_branch: Annotated[str, typer.Argument(help="tree to merge into the HEAD")],
 ):
     """
-    Review the result of a merge between the HEAD and the tree
+    Review the result of merging the feature branch into the HEAD
     """
     try:
-        ctx.obj.diff.merge(tree)
+        ctx.obj.diff.merge(feature_branch)
     except InvalidTree as invalid_tree:
-        print(f"{tree} is not a valid tree to merge into the HEAD")
+        print(f"{feature_branch} is not a valid tree to merge into the HEAD")
         raise typer.Abort() from invalid_tree
     except IsAncestor as ancestor_tree:
-        print(f"{tree} is an ancestor of the HEAD, no code changes to review")
+        print(f"{feature_branch} is an ancestor of the HEAD, no code changes to review")
         raise typer.Abort() from ancestor_tree
     except DirtyRepo as dirty_repo:
         print(
@@ -179,7 +180,7 @@ def pr(
     remote: Annotated[str, typer.Argument(help="remote of the target branch")] = "origin",
 ):
     """
-    Review the result of a pull request to the target branch in the remote
+    Review the result of a pull request from HEAD to the target branch in the remote
     """
     remote_target_ref = f"{remote}/{target_branch}"
     try:

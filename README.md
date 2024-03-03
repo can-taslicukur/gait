@@ -1,30 +1,13 @@
-# gait
+# `gait`
 
-ai git code reviewer command line tool
+`gait` is a command line tool that helps you review code changes in a git repository using an LLM. `gait` commands generates diffs based on `git` commands, and (currently) uses OpenAI's chat completion models to provide code review suggestions.
 
+## Getting Started
 
-## Features
+Currently, gait only supports OpenAI chat completion models. To use any of the commands, you can either set the `OPENAI_API_KEY` environment variable or pass your OpenAI API key manually with `--openai-api-key` option.
 
-[WIP]
+## Help
 
-### Phase 1
+To get help, run `gait --help`.
 
-`gait add`  
-Lets you review the index against the working tree
-
-`gait commit`
-Lets you review the index against the HEAD
-
-`gait merge <tree>`
-Lets you review the <tree> against the HEAD
-
-`gait pr <tree>`
-Lets you review the HEAD against the <tree>
-
-### Phase 2
-
-`gait push`
-Lets you review the HEAD against the remote
-
-`gait pull`
-Lets you review the remote against the HEAD
+To get help on a specific command, run `gait <command> --help`.
