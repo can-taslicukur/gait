@@ -9,7 +9,11 @@ description = "Review your code changes in a git repository using an LLM"
 authors = [{ name = "Can Tașlıçukur", email = "can.taslicukur@ozu.edu.tr" }]
 readme = "README.md"
 license = "Apache-2.0"
-dependencies = ["gitpython>=3.1.44", "typer>=0.15.1"]
+dependencies = [
+    "gitpython>=3.1.44",
+    "openai>=1.64.0",
+    "typer>=0.15.1",
+]
 
 [project.urls]
 Repository = "https://github.com/can-taslicukur/gait"
