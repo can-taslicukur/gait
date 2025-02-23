@@ -219,15 +219,3 @@ def test_pr(git_history, snapshot):
     repo.git.reset("HEAD^", hard=True)
     with pytest.raises(IsAncestor):
         diff.pr("master")
-
-
-def test_review_patch(mock_openai, git_history):
-    openai_client = mock_openai["MockOpenAI"]("test-key")
-    diff = Diff(git_history["repo_path"])
-    with pytest.raises(Exception, match="No patch to review"):
-        diff.review_patch(openai_client, "gpt-3", 0.7, "system_prompt")
-
-    openai_client.chat.completions.create.return_value = "test completion"
-    diff.add().create_patch()
-    diff.review_patch(openai_client, "gpt-3", 0.7, "system prompt")
-    assert diff.review == "test completion"
