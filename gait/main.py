@@ -48,13 +48,6 @@ def main(
             min=0, max=2, help="Temperature for the model", rich_help_panel="OpenAI Parameters"
         ),
     ] = 1,
-    system_prompt: Annotated[
-        str,
-        typer.Option(
-            help="Custom system prompt to use for the diff patches",
-            rich_help_panel="OpenAI Parameters",
-        ),
-    ] = None,
     unified: Annotated[
         int,
         typer.Option(
@@ -88,16 +81,13 @@ def main(
             f"{model} does not exist", ctx=ctx, param=model, param_hint="model"
         ) from no_model
 
-    if system_prompt is None:
-        system_prompt = read_prompt("default")
-
     ctx.obj = SimpleNamespace(
         diff=diff,
         client=client,
         openai_api_key=openai_api_key,
         model=model,
         temperature=temperature,
-        system_prompt=system_prompt,
+        system_prompt=read_prompt("default"),
         unified=unified,
     )
 
