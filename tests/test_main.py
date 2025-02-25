@@ -15,4 +15,8 @@ def test_main(monkeypatch, git_history):
     monkeypatch.chdir(git_history["no_repo_path"])
     not_a_repo_result = runner.invoke(app)
     assert not_a_repo_result.exit_code != 0
-    assert "Current directory is not a git repository" in not_a_repo_result.stdout
+    print(not_a_repo_result.exit_code)
+    print(not_a_repo_result.stdout)
+    assert not_a_repo_result.stdout.endswith(
+        "\nCurrent directory is not a git repository\nAborted.\n"
+    )

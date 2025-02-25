@@ -27,4 +27,4 @@ jobs:
           git config --global user.email "ci-bot@example.com"
           git config --global user.name "CI Bot"
       - name: Run tests
-        run: uv run pytest tests
+        run: uv run pytest tests -s

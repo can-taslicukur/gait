@@ -28,6 +28,11 @@ def git_history(tmp_path_factory):
     with open(gitignore, "a") as f:
         f.write("third_line\n")
 
+    # Adding a new file
+    new_file = repo_path / "new_file"
+    with open(new_file, "w") as f:
+        f.write("this is a new file")
+
     remote_repo_path = tmp_path_factory.mktemp("remote_repo")
     Repo.init(remote_repo_path, bare=True)
 
