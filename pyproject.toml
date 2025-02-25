@@ -19,7 +19,11 @@ Repository = "https://github.com/can-taslicukur/gait"
 gait = "gait.main:app"
 
 [dependency-groups]
-dev = ["pytest>=8.3.4", "pytest-snapshot>=0.9.0"]
+dev = [
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+ "pytest-snapshot>=0.9.0",
+]
 lint = ["ruff>=0.9.7"]
 
 [tool.ruff]
