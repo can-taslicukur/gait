@@ -1,5 +1,3 @@
-from unittest.mock import MagicMock
-
 import pytest
 from git import Repo
 
@@ -30,6 +28,11 @@ def git_history(tmp_path_factory):
     with open(gitignore, "a") as f:
         f.write("third_line\n")
 
+    # Adding a new file
+    new_file = repo_path / "new_file"
+    with open(new_file, "w") as f:
+        f.write("this is a new file")
+
     remote_repo_path = tmp_path_factory.mktemp("remote_repo")
     Repo.init(remote_repo_path, bare=True)
 
@@ -41,33 +44,4 @@ def git_history(tmp_path_factory):
         "gitignore": gitignore,
         "remote_repo_path": remote_repo_path,
         "no_repo_path": no_repo_path,
-    }
-
-
-@pytest.fixture
-def mock_openai():
-    class MockAuthenticationError(Exception):
-        pass
-
-    class MockNotFoundError(Exception):
-        pass
-
-    class MockOpenAI:
-        def __init__(self, api_key):
-            self.api_key = api_key
-            self.models = MagicMock()
-            self.chat = MagicMock()
-
-            def models_retrieve_side_effect(model):
-                if self.api_key != "test-key":
-                    raise MockAuthenticationError
-                if model not in ["gpt-3.5-turbo", "gpt-4"]:
-                    raise MockNotFoundError
-
-            self.models.retrieve.side_effect = models_retrieve_side_effect
-
-    return {
-        "MockAuthenticationError": MockAuthenticationError,
-        "MockNotFoundError": MockNotFoundError,
-        "MockOpenAI": MockOpenAI,
     }
